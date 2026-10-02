@@ -295,6 +295,51 @@ function paintFern(p, r, base, top, full) {
   }
 }
 
+// Iron bucket seen slightly from above: handle, rim, tapered shaded body,
+// and the liquid (or the dark empty inside) visible through the opening.
+const BUCKET_ROWS = [
+  '................',
+  '................',
+  '.....hhhhhh.....',
+  '....h......h....',
+  '...h........h...',
+  '..KKKKKKKKKKKK..',
+  '.KTTTTTTTTTTTtK.',
+  '.KRPQQQQQQQQSrK.',
+  '.KRQQQQQQQQSSrK.',
+  '.KFFFFFFFFFFffK.',
+  '..KAABBBBBCCDK..',
+  '..KAABBBBBCCDK..',
+  '..KaabbbbbccdK..',
+  '...KABBBBBCDK...',
+  '...KAABBBCCDK...',
+  '....KKKKKKKK....',
+];
+function paintBucket(p, liquid) {
+  p.clear();
+  const pal = {
+    h: [96, 96, 104, 255], K: [36, 36, 42, 255],
+    T: [206, 206, 214, 255], t: [150, 150, 160, 255],      // back of the rim
+    R: [186, 186, 194, 255], r: [132, 132, 140, 255],      // rim sides
+    F: [226, 226, 232, 255], f: [160, 160, 168, 255],      // front of the rim
+    A: [240, 240, 246, 255], B: [200, 200, 208, 255], C: [168, 168, 176, 255], D: [120, 120, 128, 255],
+    a: [208, 208, 214, 255], b: [172, 172, 180, 255], c: [144, 144, 152, 255], d: [104, 104, 112, 255],
+  };
+  if (liquid) {
+    pal.P = liquid.light.concat(255); pal.Q = liquid.base.concat(255); pal.S = liquid.dark.concat(255);
+  } else {
+    pal.P = [70, 70, 78, 255]; pal.Q = [58, 58, 66, 255]; pal.S = [44, 44, 50, 255];
+  }
+  p.pattern(BUCKET_ROWS, pal);
+}
+
+function defBucketTiles() {
+  defTile('bucket', (p) => paintBucket(p, null));
+  defTile('water_bucket', (p) => paintBucket(p, { base: [44, 92, 220], light: [140, 190, 255], dark: [30, 64, 170] }));
+  defTile('lava_bucket', (p) => paintBucket(p, { base: [240, 120, 20], light: [255, 230, 110], dark: [200, 60, 10] }));
+  defTile('milk_bucket', (p) => paintBucket(p, { base: [252, 252, 246], light: [255, 255, 255], dark: [230, 228, 214] }));
+}
+
 function buildAtlas() {
   const cv = document.createElement('canvas');
   cv.width = cv.height = ATLAS_PX;
@@ -655,14 +700,7 @@ function buildAtlas() {
     p.clear();
     p.pattern(['', '', '...SSSS', '..S....S', '..S.....S', '...S....S', '.........S', '........SAA', '.......ABBA', '......ABBBA', '......ABBA', '.......AA'], { S: [180, 180, 180, 255], A: [30, 30, 30, 255], B: [80, 80, 80, 255] });
   });
-  defTile('bucket', (p) => {
-    p.clear();
-    p.pattern(['', '', '', '...SSSSSSSSSS', '..SDDDDDDDDDDS', '..SLLLLLLLLLLS', '...SLLLLLLLLS', '...SLLLLLLLLS', '....SLLLLLLS', '....SLLLLLLS', '.....SSSSSS'], { S: [100, 100, 100, 255], D: [40, 40, 40, 255], L: [200, 200, 200, 255] });
-  });
-  defTile('water_bucket', (p) => {
-    p.clear();
-    p.pattern(['', '', '', '...SSSSSSSSSS', '..SWWWWWWWWWWS', '..SLLLLLLLLLLS', '...SLLLLLLLLS', '...SLLLLLLLLS', '....SLLLLLLS', '....SLLLLLLS', '.....SSSSSS'], { S: [100, 100, 100, 255], W: [50, 90, 230, 255], L: [200, 200, 200, 255] });
-  });
+  defBucketTiles();
   defTile('wheat_seeds', (p, r) => { p.clear(); for (let i = 0; i < 8; i++) { const x = 3 + Math.floor(r() * 10), y = 4 + Math.floor(r() * 9); p.set(x, y, [60, 160, 50]); p.set(x, y + 1, [40, 110, 30]); } });
 
   const mats = { wooden: C.wood, stone: C.stoneTool, iron: C.iron, golden: C.gold, diamond: C.diamond };
@@ -993,7 +1031,6 @@ function buildAtlas() {
   defTile('steak', meat([110, 60, 30, 255], [150, 90, 50, 255], [200, 170, 130, 255]));
   defTile('chicken', I_(['', '', '...........BB', '..........BWB', '.....PPPPBB', '...PPPPPPP', '..PPpPPPPPP', '..PPPPPPPpP', '..PPPPPPPPP', '...PPPPPPP', '....PPPPP'], { B: [230, 220, 200, 255], W: [255, 250, 240, 255], P: [240, 190, 170, 255], p: [255, 220, 200, 255] }));
   defTile('cooked_chicken', I_(['', '', '...........BB', '..........BWB', '.....PPPPBB', '...PPPPPPP', '..PPpPPPPPP', '..PPPPPPPpP', '..PPPPPPPPP', '...PPPPPPP', '....PPPPP'], { B: [230, 220, 200, 255], W: [255, 250, 240, 255], P: [190, 120, 60, 255], p: [230, 170, 100, 255] }));
-  defTile('milk_bucket', I_(['', '', '', '...SSSSSSSSSS', '..SWWWWWWWWWWS', '..SLLLLLLLLLLS', '...SLLLLLLLLS', '...SLLLLLLLLS', '....SLLLLLLS', '....SLLLLLLS', '.....SSSSSS'], { S: [100, 100, 100, 255], W: [250, 250, 250, 255], L: [200, 200, 200, 255] }));
   defTile('bone', I_(['', '...........WW', '..........WWWW', '..........WWW', '.........WW', '........WW', '.......WW', '......WW', '.....WW', '...WWW', '..WWWW', '..WW'], { W: [236, 232, 220, 255] }));
   defTile('bone_meal', (p, r) => { p.clear(); for (let i = 0; i < 70; i++) { const a = r() * 6.28, d = r() * 5.5; p.set(Math.round(8 + Math.cos(a) * d), Math.round(9 + Math.sin(a) * d * 0.7), p.vary([236, 236, 226], 0.06)); } });
   defTile('cake_item', I_(['', '', '', '', '.....RWWWR', '...WWWWWWWWW', '..WWRWWWWRWWW', '..WWWWWWWWWWW', '..WsWsWWsWWsW', '..ssssssssssss', '..sjjjjjjjjjjs', '..ssssssssssss', '...ssssssssss'], { W: [246, 244, 238, 255], R: [220, 30, 40, 255], s: [220, 172, 110, 255], j: [200, 40, 50, 255] }));

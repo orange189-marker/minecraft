@@ -544,7 +544,8 @@ class World {
       if (t.burn <= 0 && canCook && fuel && FUEL[fuel.id]) {
         t.burn = t.burnMax = FUEL[fuel.id];
         if (fuel.id === I.WATER_BUCKET) { /* not fuel */ }
-        fuel.count--; if (fuel.count <= 0) t.items[1] = null;
+        if (fuel.id === I.LAVA_BUCKET) t.items[1] = { id: I.BUCKET, count: 1 };
+        else { fuel.count--; if (fuel.count <= 0) t.items[1] = null; }
       }
       if (t.burn > 0 && canCook) {
         t.cook += dt;

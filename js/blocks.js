@@ -158,7 +158,7 @@ Object.assign(I, {
   WHEAT: 279, CARROT: 280, POTATO: 281, BAKED_POTATO: 282, BEETROOT: 283, BEETROOT_SEEDS: 284, BEETROOT_SOUP: 285,
   PUMPKIN_SEEDS: 286, MELON_SEEDS: 287, MELON_SLICE: 288, SUGAR: 289, EGG: 290, FEATHER: 291, LEATHER: 292,
   BEEF: 293, STEAK: 294, CHICKEN: 295, COOKED_CHICKEN: 296, MILK_BUCKET: 297, BONE: 298, BONE_MEAL: 299,
-  CAKE: 320, SHEARS: 321, COOKIE: 322, BOOK: 323,
+  CAKE: 320, SHEARS: 321, COOKIE: 322, BOOK: 323, LAVA_BUCKET: 329,
 });
 function defItem(id, d) {
   ITEMS[id] = Object.assign({ id, name: 'Item', tile: 'stick', stack: 64 }, d);
@@ -212,6 +212,7 @@ defItem(I.CAKE, { name: 'Cake', tile: 'cake_item', stack: 1, places: B.CAKE });
 defItem(I.SHEARS, { name: 'Shears', tile: 'shears', stack: 1, durability: 238, tool: 'shears', tier: 0, speed: 1.5, damage: 1 });
 defItem(I.COOKIE, { name: 'Cookie', tile: 'cookie', food: 2 });
 defItem(I.BOOK, { name: 'Book', tile: 'book' });
+defItem(I.LAVA_BUCKET, { name: 'Lava Bucket', tile: 'lava_bucket', stack: 1 });
 
 const TOOL_MATS = [
   { key: 'wooden', name: 'Wooden', tier: 0, speed: 2, dur: 59, dmg: 0 },

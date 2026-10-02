@@ -143,7 +143,7 @@ const FUEL = {
   [B.SPRUCE_LOG]: 15, [I.STICK]: 5, [B.SAPLING_OAK]: 5, [B.SAPLING_BIRCH]: 5, [B.SAPLING_SPRUCE]: 5, [B.CRAFTING_TABLE]: 15, [B.CHEST]: 15, [B.BOOKSHELF]: 15,
 };
 for (const m of ['pickaxe', 'axe', 'shovel', 'sword']) FUEL[TOOLS['wooden_' + m]] = 10;
-FUEL[TOOLS.wooden_hoe] = 10; FUEL[B.HAY_BALE] = 20; FUEL[B.COMPOSTER] = 15;
+FUEL[TOOLS.wooden_hoe] = 10; FUEL[I.LAVA_BUCKET] = 1000; FUEL[B.HAY_BALE] = 20; FUEL[B.COMPOSTER] = 15;
 
 // ---------------------------------------------------------------------------
 // Inventory model

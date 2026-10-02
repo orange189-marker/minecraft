@@ -591,7 +591,7 @@ class UI {
       All: () => true,
       Building: (id) => id < 256 && RENDER[id] === RT_CUBE,
       Nature: (id) => id < 256 && (RENDER[id] !== RT_CUBE || [B.GRASS, B.DIRT, B.SAND, B.GRAVEL, B.SNOW, B.ICE, B.CLAY, B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.CACTUS, B.PUMPKIN].includes(id)),
-      Tools: (id) => id >= 256 && !!ITEMS[id].tool || id === I.FLINT_AND_STEEL || id === I.BUCKET || id === I.WATER_BUCKET,
+      Tools: (id) => id >= 256 && !!ITEMS[id].tool || id === I.FLINT_AND_STEEL || [I.BUCKET, I.WATER_BUCKET, I.LAVA_BUCKET, I.MILK_BUCKET].includes(id),
       Items: (id) => id >= 256,
     };
     let cat = 'All';

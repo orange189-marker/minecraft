@@ -492,9 +492,10 @@ class Game {
     if (heldId === I.BUCKET) {
       const [dx, dy, dz] = p.lookDir();
       const h = raycastBlocks(w, p.x, p.eyeY, p.z, dx, dy, dz, this.reach(), true);
-      if (h && h.id === B.WATER && w.getMeta(h.x, h.y, h.z) === 0) {
+      if (h && ((h.id === B.WATER && w.getMeta(h.x, h.y, h.z) === 0) || h.id === B.LAVA)) {
+        const full = h.id === B.LAVA ? I.LAVA_BUCKET : I.WATER_BUCKET;
         w.setBlock(h.x, h.y, h.z, B.AIR);
-        if (p.mode === 'survival') { p.inventory.consumeHeld(1); const left = p.inventory.add(I.WATER_BUCKET, 1); if (left) this.dropFromPlayer(I.WATER_BUCKET, 1); }
+        if (p.mode === 'survival') { p.inventory.consumeHeld(1); const left = p.inventory.add(full, 1); if (left) this.dropFromPlayer(full, 1); }
         this.audio.play('bucket');
         w.processLightQueue(true);
       }
@@ -507,8 +508,8 @@ class Game {
     if (py < 0 || py >= WORLD_H) return;
     const cur = w.getBlock(px, py, pz);
     if (!BLOCKS[cur].replaceable) return;
-    if (heldId === I.WATER_BUCKET) {
-      w.setBlock(px, py, pz, B.WATER, 0);
+    if (heldId === I.WATER_BUCKET || heldId === I.LAVA_BUCKET) {
+      w.setBlock(px, py, pz, heldId === I.LAVA_BUCKET ? B.LAVA : B.WATER, 0);
       if (p.mode === 'survival') { p.inventory.slots[p.inventory.selected] = makeStack(I.BUCKET, 1); p.inventory.changed(); }
       this.audio.play('splash', px, py, pz);
       w.processLightQueue(true);
