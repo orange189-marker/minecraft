@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blockhaven</title>
+  <meta name="description" content="Blockhaven - a voxel sandbox survival game that runs in your browser.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="underwater"></div>
+  <div id="damage-flash"></div>
+  <div id="sleep"></div>
+
+  <div id="hud" style="display:none">
+    <div id="crosshair"></div>
+    <pre id="debug"></pre>
+    <div id="messages"></div>
+    <div id="clickhint">Click to play</div>
+    <div id="bottom">
+      <div id="item-name"></div>
+      <div id="bars">
+        <div class="barcol"><div id="hearts" class="iconrow"></div></div>
+        <div class="barcol right"><div id="bubbles" class="iconrow"></div><div id="hunger" class="iconrow"></div></div>
+      </div>
+      <div id="hotbar"></div>
+    </div>
+  </div>
+
+  <div id="overlay"></div>
+  <div id="cursor-stack"><img alt=""><span></span></div>
+  <div id="tooltip"></div>
+
+  <div id="loading">
+    <div class="ltitle">BLOCKHAVEN</div>
+    <div class="ltext">Loading...</div>
+    <div class="lbar"><div class="lfill"></div></div>
+  </div>
+
+  <noscript><div class="fatal">Blockhaven needs JavaScript enabled.</div></noscript>
+
+  <script src="js/util.js"></script>
+  <script src="js/noise.js"></script>
+  <script src="js/textures.js"></script>
+  <script src="js/blocks.js"></script>
+  <script src="js/worldgen.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/mesher.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/crafting.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
