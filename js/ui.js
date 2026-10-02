@@ -564,12 +564,12 @@ class UI {
     const tabs = el('div', 'tabs', p);
     const grid = el('div', 'grid g9 palette', p);
     const all = [];
-    for (let id = 1; id < 256; id++) if (BLOCKS[id] && id !== B.WATER && id !== B.LAVA && id !== B.FURNACE_LIT) all.push(id);
+    for (let id = 1; id < 256; id++) if (BLOCKS[id] && !BLOCKS[id].hidden && id !== B.WATER && id !== B.LAVA && id !== B.FURNACE_LIT) all.push(id);
     for (let id = 256; id < ITEMS.length; id++) if (ITEMS[id]) all.push(id);
     const cats = {
       All: () => true,
       Building: (id) => id < 256 && RENDER[id] === RT_CUBE,
-      Nature: (id) => id < 256 && (RENDER[id] !== RT_CUBE || [B.GRASS, B.DIRT, B.SAND, B.GRAVEL, B.SNOW, B.ICE, B.CLAY, B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.CACTUS].includes(id)),
+      Nature: (id) => id < 256 && (RENDER[id] !== RT_CUBE || [B.GRASS, B.DIRT, B.SAND, B.GRAVEL, B.SNOW, B.ICE, B.CLAY, B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES, B.OAK_LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.CACTUS, B.PUMPKIN].includes(id)),
       Tools: (id) => id >= 256 && !!ITEMS[id].tool || id === I.FLINT_AND_STEEL || id === I.BUCKET || id === I.WATER_BUCKET,
       Items: (id) => id >= 256,
     };

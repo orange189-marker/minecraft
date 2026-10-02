@@ -37,7 +37,7 @@ function getIcon(id) {
     layer(right, [k, -h, 0, k, 32, 32], 0.42);
     layer(top, [k, -h, k, h, 6, 19], 0);
   } else {
-    const tile = isBlock ? FACE_TEX[id * 6] : tileIndex(ITEMS[id].tile);
+    const tile = itemTile(id);
     ctx.drawImage(tileCanvas(tile), 0, 0, 16, 16, 4, 4, 56, 56);
   }
   IconCache[id] = cv.toDataURL();

@@ -101,10 +101,41 @@ function paintStone(p) {
   for (let i = 0; i < 10; i++) p.set(Math.floor(r() * 16), Math.floor(r() * 16), p.vary([150, 150, 150], 0.05));
 }
 
+// Smooth tileable random field in [0,1] for natural-looking clusters
+function blurField(r, passes = 2) {
+  let a = new Float32Array(256);
+  for (let i = 0; i < 256; i++) a[i] = r();
+  for (let k = 0; k < passes; k++) {
+    const b = new Float32Array(256);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const i = y * 16 + x;
+      b[i] = (a[i] * 2 + a[y * 16 + ((x + 1) & 15)] + a[y * 16 + ((x + 15) & 15)] + a[((y + 1) & 15) * 16 + x] + a[((y + 15) & 15) * 16 + x]) / 6;
+    }
+    a = b;
+  }
+  let mn = 1, mx = 0;
+  for (const v of a) { if (v < mn) mn = v; if (v > mx) mx = v; }
+  for (let i = 0; i < 256; i++) a[i] = (a[i] - mn) / (mx - mn || 1);
+  return a;
+}
+const DIRT_PAL = [[86, 60, 40], [108, 77, 52], [128, 92, 64], [145, 106, 75], [163, 122, 88]];
+const GRASS_PAL = [[58, 106, 30], [76, 130, 40], [96, 156, 52], [114, 174, 62], [138, 194, 80]];
+function pickPal(pal, v) { return pal[Math.min(pal.length - 1, Math.floor(v * pal.length))]; }
+
 function paintDirt(p) {
-  p.fillNoise(C.dirt, 0.18);
   const r = p.rng;
-  for (let i = 0; i < 22; i++) p.set(Math.floor(r() * 16), Math.floor(r() * 16), p.vary(r() < 0.5 ? [100, 70, 48] : [160, 118, 84], 0.1));
+  const f = blurField(r, 1);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const v = f[y * 16 + x] * 0.75 + r() * 0.25;
+    p.set(x, y, p.vary(pickPal(DIRT_PAL, v), 0.05));
+  }
+  // small pebbles and roots
+  for (let i = 0; i < 5; i++) {
+    const x = Math.floor(r() * 15), y = Math.floor(r() * 15);
+    const c = r() < 0.6 ? [124, 114, 104] : [96, 90, 84];
+    p.set(x, y, c); if (r() < 0.6) p.set(x + 1, y, [c[0] * 0.8, c[1] * 0.8, c[2] * 0.8]);
+  }
+  for (let i = 0; i < 10; i++) p.set(Math.floor(r() * 16), Math.floor(r() * 16), DIRT_PAL[0]);
 }
 
 function paintPlanks(p, c) {
@@ -230,6 +261,36 @@ function toolTile(type, mat) {
   };
 }
 
+// A single grass blade growing up from (x, base)
+function paintBlade(p, r, x, base, h, full) {
+  let fx = x;
+  const lean = (r() - 0.5) * 0.25;
+  for (let k = 0; k < h; k++) {
+    const y = base - k;
+    if (y < 0) break;
+    const t = k / Math.max(1, h - 1);
+    const v = full ? 0.25 + r() * 0.5 : clamp(0.15 + t * 0.85 + (r() - 0.5) * 0.2, 0, 0.99);
+    p.set(Math.round(fx), y, p.vary(pickPal(GRASS_PAL, v), 0.04));
+    fx = clamp(fx + lean + (r() < 0.12 ? (r() < 0.5 ? -1 : 1) : 0), 0, 15);
+  }
+}
+function paintStem(p, x, y0, y1) { for (let y = y0; y <= y1; y++) { p.set(x, y, [62, 120, 38]); } }
+function paintLeaf(p, x, y, dir) { for (let k = 0; k < 4; k++) { p.set(x + dir * k, y - (k >> 1), pickPal(GRASS_PAL, 0.3 + k * 0.15)); if (k < 3) p.set(x + dir * k, y - (k >> 1) + 1, GRASS_PAL[1]); } }
+function paintFern(p, r, base, top, full) {
+  p.clear();
+  for (const [sx, lean] of [[7, -0.25], [8, 0.25], [5, -0.5], [10, 0.5]]) {
+    let x = sx;
+    for (let y = base; y >= top; y--) {
+      p.set(Math.round(x), y, GRASS_PAL[1]);
+      if ((y + sx) % 2 === 0) {
+        const w = full ? 2 : Math.max(1, Math.floor((y - top) / 3));
+        for (let k = 1; k <= w; k++) { p.set(Math.round(x) - k, y - (k >> 1), pickPal(GRASS_PAL, 0.4 + r() * 0.5)); p.set(Math.round(x) + k, y - (k >> 1), pickPal(GRASS_PAL, 0.4 + r() * 0.5)); }
+      }
+      x = clamp(x + lean * 0.35, 0, 15);
+    }
+  }
+}
+
 function buildAtlas() {
   const cv = document.createElement('canvas');
   cv.width = cv.height = ATLAS_PX;
@@ -240,14 +301,31 @@ function buildAtlas() {
   defTile('stone', paintStone);
   defTile('dirt', paintDirt);
   defTile('grass_top', (p, r) => {
-    p.fillNoise(C.grass, 0.2);
-    for (let i = 0; i < 30; i++) p.set(Math.floor(r() * 16), Math.floor(r() * 16), p.vary([80, 140, 44], 0.1));
+    const f = blurField(r, 2);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const v = clamp(f[y * 16 + x] * 0.7 + r() * 0.3 + 0.05, 0, 0.999);
+      p.set(x, y, p.vary(pickPal(GRASS_PAL, v), 0.04));
+    }
+    // little blades: dark root pixel with lighter tip above it
+    for (let i = 0; i < 26; i++) {
+      const x = Math.floor(r() * 16), y = Math.floor(r() * 16);
+      p.set(x, y, GRASS_PAL[0]);
+      p.set(x, (y + 15) & 15, r() < 0.5 ? GRASS_PAL[3] : GRASS_PAL[4]);
+    }
   });
   defTile('grass_side', (p, r) => {
     paintDirt(p);
+    let prev = 3;
     for (let x = 0; x < 16; x++) {
-      const h = 3 + Math.floor(r() * 2) + (r() < 0.25 ? 1 : 0);
-      for (let y = 0; y < h; y++) p.set(x, y, p.vary(C.grass, 0.18));
+      let h = 2 + Math.floor(r() * 3);
+      if (Math.abs(h - prev) > 1) h = prev + Math.sign(h - prev);
+      if (r() < 0.18) h += 2 + Math.floor(r() * 2); // drips
+      prev = Math.min(h, 4);
+      for (let y = 0; y < h; y++) {
+        const v = y === 0 ? 0.85 : y === h - 1 ? 0.15 : 0.35 + r() * 0.4;
+        p.set(x, y, p.vary(pickPal(GRASS_PAL, v), 0.04));
+      }
+      p.set(x, h, p.vary(DIRT_PAL[0], 0.05)); // shadow under the overhang
     }
   });
   defTile('snow', (p) => p.fillNoise(C.snow, 0.05));
@@ -441,15 +519,9 @@ function buildAtlas() {
   });
   defTile('tallgrass', (p, r) => {
     p.clear();
-    for (let b = 0; b < 9; b++) {
-      let x = 1 + Math.floor(r() * 14); const h = 5 + Math.floor(r() * 9);
-      for (let k = 0; k < h; k++) { p.set(x, 15 - k, p.vary([90, 160, 52], 0.25)); if (r() < 0.2) x += r() < 0.5 ? -1 : 1; }
-    }
+    for (let b = 0; b < 13; b++) paintBlade(p, r, 1 + Math.floor(r() * 14), 15, 5 + Math.floor(r() * 9));
   });
-  defTile('fern', (p, r) => {
-    p.clear();
-    for (let y = 2; y < 16; y++) { p.set(7, y, [60, 120, 40]); const w = Math.floor((16 - y) / 3) + 1; if (y % 2 === 0) for (let k = 1; k <= w; k++) { p.set(7 - k, y - (k >> 1), p.vary([70, 140, 50], 0.2)); p.set(7 + k, y - (k >> 1), p.vary([70, 140, 50], 0.2)); } }
-  });
+  defTile('fern', (p, r) => paintFern(p, r, 15, 3));
   defTile('dandelion', (p) => {
     p.clear();
     for (let y = 9; y < 16; y++) p.set(7, y, [60, 130, 30]);
@@ -638,6 +710,134 @@ function buildAtlas() {
       if (c) p.set(x, y, p.vary(c, 0.06));
     }
   });
+  // ---- Tall plants (bottom + top halves) ----
+  defTile('tall_grass_bottom', (p, r) => { p.clear(); for (let b = 0; b < 14; b++) paintBlade(p, r, 1 + Math.floor(r() * 14), 15, 16, true); });
+  defTile('tall_grass_top', (p, r) => { p.clear(); for (let b = 0; b < 12; b++) paintBlade(p, r, 1 + Math.floor(r() * 14), 15, 4 + Math.floor(r() * 10)); });
+  defTile('large_fern_bottom', (p, r) => paintFern(p, r, 15, 0, true));
+  defTile('large_fern_top', (p, r) => paintFern(p, r, 15, 4));
+  defTile('sunflower_bottom', (p, r) => { p.clear(); paintStem(p, 7, 0, 15); paintLeaf(p, 8, 9, 1); paintLeaf(p, 6, 4, -1); paintLeaf(p, 8, 1, 1); });
+  defTile('sunflower_top', (p, r) => {
+    p.clear();
+    paintStem(p, 7, 10, 15); paintLeaf(p, 8, 13, 1);
+    for (let y = 0; y < 11; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.hypot(x - 7.5, (y - 5) * 1.05);
+      if (d < 2.9) p.set(x, y, (x + y) % 2 ? [92, 56, 22] : [70, 40, 16]);
+      else if (d < 5.4 && !(d > 4.6 && (Math.atan2(y - 5, x - 7.5) * 4 / Math.PI + 8) % 1 < 0.3)) p.set(x, y, p.vary(d > 4.3 ? [240, 190, 20] : [255, 214, 40], 0.06));
+    }
+  });
+  const bushTop = (flowerCols, n) => (p, r) => {
+    p.clear();
+    for (let y = 1; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.hypot((x - 7.5) / 7.5, (y - 9) / 7.5);
+      if (d < 1 && r() < 0.85 - d * 0.3) p.set(x, y, p.vary(pickPal(GRASS_PAL, r() * 0.8), 0.05));
+    }
+    for (let i = 0; i < n; i++) {
+      const cx = 2 + Math.floor(r() * 12), cy = 2 + Math.floor(r() * 10);
+      for (let k = 0; k < 7; k++) {
+        const x = cx + Math.floor(r() * 3) - 1, y = cy + Math.floor(r() * 3) - 1;
+        p.set(x, y, flowerCols[Math.floor(r() * flowerCols.length)]);
+      }
+    }
+  };
+  const bushBottom = (p, r) => {
+    p.clear();
+    for (const x0 of [4, 7, 8, 11]) paintStem(p, x0, 0, 15);
+    for (let i = 0; i < 70; i++) { const x = Math.floor(r() * 16), y = Math.floor(r() * 13); if (Math.abs(x - 7.5) < 7 - y * 0.2) p.set(x, y, p.vary(pickPal(GRASS_PAL, r() * 0.7), 0.05)); }
+  };
+  defTile('lilac_bottom', bushBottom); defTile('rose_bush_bottom', bushBottom); defTile('peony_bottom', bushBottom);
+  defTile('lilac_top', bushTop([[200, 150, 220], [176, 120, 206], [226, 186, 240], [150, 96, 180]], 7));
+  defTile('rose_bush_top', bushTop([[220, 20, 30], [180, 10, 20], [250, 70, 70]], 5));
+  defTile('peony_top', bushTop([[240, 170, 210], [220, 140, 190], [255, 210, 236]], 6));
+  defTile('bush', (p, r) => {
+    p.clear();
+    for (let y = 2; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.hypot((x - 7.5) / 7.8, (y - 10) / 6.5);
+      if (d < 1 && r() < 0.95 - d * 0.35) p.set(x, y, p.vary(pickPal(GRASS_PAL, clamp(1 - d + (r() - 0.5) * 0.5, 0, 0.99)), 0.05));
+    }
+  });
+  const berry = (full) => (p, r) => {
+    p.clear();
+    for (let y = 3; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.hypot((x - 7.5) / 7.5, (y - 10) / 6.5);
+      if (d < 1 && r() < 0.8) p.set(x, y, p.vary([40, 96, 50], 0.25));
+    }
+    if (full) for (let i = 0; i < 7; i++) { const x = 2 + Math.floor(r() * 12), y = 5 + Math.floor(r() * 9); p.set(x, y, [200, 20, 40]); p.set(x + 1, y, [150, 10, 30]); p.set(x, y - 1, [240, 90, 100]); }
+  };
+  defTile('berry_bush', berry(true));
+  defTile('berry_bush_empty', berry(false));
+
+  // ---- Flowers ----
+  const F = (rows, pal) => (p) => { p.clear(); p.pattern(rows, Object.assign({ g: [56, 120, 36, 255], l: [74, 150, 48, 255], d: [44, 96, 30, 255] }, pal)); };
+  defTile('blue_orchid', F(['', '', '......b..b', '.....bBbbBb', '....bBBwwBBb', '....bBBwwBBb', '.....bBbbBb', '......b.gb', '........g', '.......g', '......lg', '.....llg..d', '......lg.dd', '.......gdd', '.......g', '.......g'],
+    { b: [40, 140, 220, 255], B: [80, 180, 250, 255], w: [190, 230, 255, 255] }));
+  defTile('allium', F(['', '', '......pPp', '.....pPPPPp', '....pPPpPPPp', '....PPPPPpPP', '....pPPPPPPp', '.....pPPPPp', '......ppgp', '........g', '........g', '.......lg', '......llg', '........g.d', '........gdd', '........g'],
+    { p: [150, 70, 200, 255], P: [196, 120, 236, 255] }));
+  defTile('azure_bluet', F(['', '', '........w', '.......wyw', '...w....w', '..wyw...g..w', '...w....g.wyw', '...g...g...w', '...g...g...g', '....g..g..g', '....g.g...g', '....g.g..g', '.....gg..g', '.....g..g', '......gg', '.......g'],
+    { w: [236, 240, 250, 255], y: [240, 210, 60, 255] }));
+  const tulip = (T, U) => F(['', '', '', '......T..T', '.....TTUTTU', '.....TTTTUU', '.....TTTTUU', '......TTUU', '.......gg', '.......g', '...l...g...l', '...ll..g..ll', '....ll.g.ll', '.....llgll', '......lgl', '.......g'], { T: T.concat(255), U: U.concat(255) });
+  defTile('tulip_red', tulip([226, 40, 30], [170, 20, 16]));
+  defTile('tulip_orange', tulip([250, 140, 40], [210, 96, 20]));
+  defTile('tulip_white', tulip([246, 246, 240], [200, 206, 200]));
+  defTile('tulip_pink', tulip([246, 170, 200], [220, 120, 160]));
+  defTile('oxeye_daisy', F(['', '', '......w.w', '....w.www.w', '.....wwwww', '...wwwyywww', '....wwyyww', '...wwwwwwww', '.....w.ww.w', '.......g', '.......g..l', '.......g.ll', '...l...gll', '...ll..g', '....llgg', '.......g'],
+    { w: [244, 244, 236, 255], y: [246, 200, 30, 255] }));
+  defTile('cornflower', F(['', '', '.....c.c.c', '......cCc', '....cCCCCCc', '...c.CCnCC.c', '....cCCCCCc', '......cCc', '.....c.g.c', '.......g', '.......g', '.....l.g', '.....llg..l', '.......g.ll', '.......gll', '.......g'],
+    { c: [60, 90, 200, 255], C: [100, 130, 240, 255], n: [30, 40, 120, 255] }));
+  defTile('lily_of_the_valley', F(['', '', '......ggg', '.....g...g', '....w.....g', '...www....w', '....w....www', '.........w', '...l....g', '...ll...g', '...lll..g..l', '....lll.g.ll', '....llllglll', '.....lllgll', '......llgl', '.......gg'],
+    { w: [250, 250, 250, 255] }));
+
+  // ---- Mushrooms, cane, lily pad ----
+  defTile('brown_mushroom', F(['', '', '', '', '', '', '', '....cCCCCc', '...cCCCCCCc', '...cccccccc', '......ss', '......ss', '......sS', '......sS', '......sS', ''],
+    { c: [130, 90, 60, 255], C: [168, 124, 88, 255], s: [226, 214, 190, 255], S: [196, 184, 160, 255] }));
+  defTile('red_mushroom', F(['', '', '', '', '', '.....RRRR', '....RwRRwR', '...RRRRRRRR', '...RRwRRRwR', '...rrrrrrrr', '......ss', '......ss', '......sS', '......sS', '......sS', ''],
+    { R: [210, 30, 30, 255], r: [150, 16, 16, 255], w: [250, 240, 240, 255], s: [226, 214, 190, 255], S: [196, 184, 160, 255] }));
+  defTile('sugar_cane', (p, r) => {
+    p.clear();
+    for (const [x0, top] of [[2, 0], [7, 2], [12, 1]]) for (let y = top; y < 16; y++) {
+      const joint = (y + x0) % 5 === 0;
+      p.set(x0, y, joint ? [160, 200, 110] : [120, 176, 80]); p.set(x0 + 1, y, joint ? [120, 160, 80] : [96, 150, 64]);
+      if (joint && y > 2 && r() < 0.6) { p.set(x0 + 2, y - 1, [110, 170, 70]); p.set(x0 + 3, y - 2, [110, 170, 70]); }
+    }
+  });
+  defTile('lily_pad', (p, r) => {
+    p.clear();
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const dx = x - 7.5, dy = y - 7.5, d = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+      if (d > 7.6 || (ang > 0.15 && ang < 0.75 && d > 1.5)) continue;
+      const vein = Math.abs(Math.sin(ang * 4)) < 0.18 && d > 2;
+      p.set(x, y, p.vary(vein ? [70, 130, 40] : d > 6.5 ? [56, 112, 34] : [86, 156, 52], 0.08));
+    }
+  });
+
+  // ---- Pumpkins ----
+  const pumpkinSide = (p, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const ridge = x % 4 === 0, edge = y === 0 || y === 15;
+      p.set(x, y, p.vary(ridge ? [196, 104, 14] : edge ? [206, 116, 20] : [228, 138, 30], 0.05));
+    }
+  };
+  defTile('pumpkin_side', pumpkinSide);
+  defTile('pumpkin_top', (p) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+      p.set(x, y, p.vary(d > 6.5 ? [200, 108, 16] : (Math.floor(d) % 3 === 0 ? [208, 118, 22] : [226, 136, 30]), 0.05));
+    }
+    p.rect(7, 6, 2, 3, [92, 70, 30]); p.set(8, 5, [70, 52, 22]);
+  });
+  defTile('jack_o_lantern', (p, r) => {
+    pumpkinSide(p, r);
+    const glow = [255, 214, 60], hot = [255, 240, 140];
+    p.pattern(['', '', '', '', '...gg.....gg', '..gGg....gGg', '..ggg....ggg', '', '', '..g........g', '..gggggggggg', '...gGgGGgGg', '....ggggggg', ''], { g: glow.concat(255), G: hot.concat(255) });
+  });
+
+  // ---- New items ----
+  defTile('paper', (p) => { p.clear(); p.pattern(['', '', '...WWWWWWWW', '...WLLLLLLWW', '..WWWWWWWWW', '..WLLLLLLLW', '..WWWWWWWWW', '..WLLLLLLW', '..WWWWWWWW', '...WWWWWWW', '...WWWWWWW', '...SSSSSSS'], { W: [244, 244, 236, 255], L: [200, 200, 210, 255], S: [180, 180, 170, 255] }); });
+  const bowlRows = (fill) => ['', '', '', '', '', '', '..KKKKKKKKKKKK', '.K' + fill + 'K', '.KBBBBBBBBBBBBK', '..KBBBBBBBBBBK', '...KBBBBBBBBK', '....KDDDDDDK', '.....KKKKKK'];
+  defTile('bowl', (p) => { p.clear(); p.pattern(bowlRows('DDDDDDDDDDDD'), { K: [60, 40, 20, 255], B: [140, 100, 56, 255], D: [100, 70, 36, 255] }); });
+  defTile('mushroom_stew', (p) => { p.clear(); p.pattern(bowlRows('SSsSSSSsSSSS'), { K: [60, 40, 20, 255], B: [140, 100, 56, 255], D: [100, 70, 36, 255], S: [176, 130, 90, 255], s: [210, 170, 130, 255] }); });
+  defTile('sweet_berries', (p) => { p.clear(); p.pattern(['', '', '', '.......gg', '......g..g', '.....g....g', '....RR...RR', '...RrRR.RrRR', '...RRRR.RRRR', '....RR.RR.RR', '......RrRR', '......RRRR', '.......RR'], { g: [50, 110, 40, 255], R: [190, 20, 40, 255], r: [250, 110, 120, 255] }); });
+  defTile('pumpkin_pie', (p) => { p.clear(); p.pattern(['', '', '', '', '', '....CCCCCCCC', '..CCPPPPPPPPCC', '.CPPPpPPPPpPPPC', '.CPPPPPPPPPPPPC', '.CCPPPPPPPPPPCC', '.ccCCCCCCCCCCcc', '..cccccccccccc'], { C: [214, 160, 90, 255], c: [170, 120, 60, 255], P: [214, 120, 40, 255], p: [240, 170, 90, 255] }); });
+
   defTile('white', (p) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, [255, 255, 255]); });
 }
 

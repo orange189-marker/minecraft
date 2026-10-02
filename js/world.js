@@ -302,9 +302,13 @@ class World {
       }
       return;
     }
-    if (def.render === RT_CROSS) {
-      const ok = id === B.DEAD_BUSH ? (below === B.SAND || below === B.DIRT || below === B.GRASS) : (below === B.GRASS || below === B.DIRT || below === B.SNOW_GRASS);
-      if (!ok) this.breakBlockNaturally(x, y, z);
+    if (def.render === RT_CROSS || id === B.LILY_PAD) {
+      if (!this.plantSupported(id, x, y, z)) {
+        // the second half of a tall plant vanishes without dropping anything
+        if (DOUBLE_UPPER[id] && this.getBlock(x, y - 1, z) !== DOUBLE_UPPER[id]) this.setBlock(x, y, z, B.AIR);
+        else if (DOUBLE_LOWER[id] && this.getBlock(x, y + 1, z) !== DOUBLE_LOWER[id]) this.setBlock(x, y, z, B.AIR);
+        else this.breakBlockNaturally(x, y, z);
+      }
       return;
     }
     if (id === B.CACTUS) {
@@ -337,6 +341,10 @@ class World {
         const x = c.cx * 16 + lx, z = c.cz * 16 + lz;
         if (id === B.SAPLING_OAK || id === B.SAPLING_BIRCH || id === B.SAPLING_SPRUCE) {
           if (Math.random() < 0.12 && this.getSky(x, y + 1, z) >= 9) this.growTree(x, y, z, id);
+        } else if (id === B.SUGAR_CANE) {
+          if (Math.random() < 0.1 && this.getBlock(x, y + 1, z) === B.AIR && !(this.getBlock(x, y - 1, z) === B.SUGAR_CANE && this.getBlock(x, y - 2, z) === B.SUGAR_CANE)) this.setBlock(x, y + 1, z, B.SUGAR_CANE, 0, { noUpdate: true });
+        } else if (id === B.BERRY_BUSH_EMPTY) {
+          if (Math.random() < 0.08) this.setBlock(x, y, z, B.BERRY_BUSH, 0, { noUpdate: true });
         } else if (id === B.DIRT) {
           const above = this.getBlock(x, y + 1, z);
           if (OPAQUE[above] || RENDER[above] === RT_LIQUID || this.getSky(x, y + 1, z) < 9) continue;
@@ -362,6 +370,24 @@ class World {
       this.setBlock(wx, ty, wz, id, 0, { noUpdate: true });
     }, 0, y, 0, type, Math.random());
     return true;
+  }
+
+  plantSupported(id, x, y, z) {
+    const below = this.getBlock(x, y - 1, z);
+    if (DOUBLE_UPPER[id]) return below === DOUBLE_UPPER[id];
+    if (DOUBLE_LOWER[id] && this.getBlock(x, y + 1, z) !== DOUBLE_LOWER[id]) return false;
+    switch (id) {
+      case B.DEAD_BUSH: return below === B.SAND || below === B.DIRT || below === B.GRASS;
+      case B.LILY_PAD: return below === B.WATER;
+      case B.BROWN_MUSHROOM: case B.RED_MUSHROOM: return !!(OPAQUE[below] && SOLID[below]);
+      case B.SUGAR_CANE: {
+        if (below === B.SUGAR_CANE) return true;
+        if (!(below === B.GRASS || below === B.DIRT || below === B.SAND)) return false;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (this.getBlock(x + dx, y - 1, z + dz) === B.WATER) return true;
+        return false;
+      }
+      default: return below === B.GRASS || below === B.DIRT || below === B.SNOW_GRASS;
+    }
   }
 
   breakBlockNaturally(x, y, z) {

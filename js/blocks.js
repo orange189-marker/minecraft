@@ -13,6 +13,12 @@ const B = {
   WOOL_WHITE: 47, WOOL_RED: 48, WOOL_ORANGE: 49, WOOL_YELLOW: 50, WOOL_LIME: 51, WOOL_BLUE: 52, WOOL_CYAN: 53,
   WOOL_PURPLE: 54, WOOL_BLACK: 55, WOOL_GRAY: 56, WOOL_PINK: 57, WOOL_BROWN: 58,
   SAPLING_OAK: 59, SAPLING_BIRCH: 60, SAPLING_SPRUCE: 61, BED: 62,
+  BLUE_ORCHID: 63, ALLIUM: 64, AZURE_BLUET: 65, TULIP_RED: 66, TULIP_ORANGE: 67, TULIP_WHITE: 68, TULIP_PINK: 69,
+  OXEYE_DAISY: 70, CORNFLOWER: 71, LILY_OF_THE_VALLEY: 72,
+  TALL_GRASS: 73, TALL_GRASS_TOP: 74, LARGE_FERN: 75, LARGE_FERN_TOP: 76, SUNFLOWER: 77, SUNFLOWER_TOP: 78,
+  LILAC: 79, LILAC_TOP: 80, ROSE_BUSH: 81, ROSE_BUSH_TOP: 82, PEONY: 83, PEONY_TOP: 84,
+  BROWN_MUSHROOM: 85, RED_MUSHROOM: 86, SUGAR_CANE: 87, LILY_PAD: 88, PUMPKIN: 89, BERRY_BUSH: 90, BUSH: 91,
+  JACK_O_LANTERN: 92, BERRY_BUSH_EMPTY: 93,
 };
 
 const I = {
@@ -23,7 +29,7 @@ const I = {
 };
 
 // Render types
-const RT_NONE = 0, RT_CUBE = 1, RT_CROSS = 2, RT_TORCH = 3, RT_LIQUID = 4, RT_CACTUS = 5, RT_BED = 6;
+const RT_NONE = 0, RT_CUBE = 1, RT_CROSS = 2, RT_TORCH = 3, RT_LIQUID = 4, RT_CACTUS = 5, RT_BED = 6, RT_FLAT = 7;
 
 const BLOCKS = [];
 function defBlock(id, d) {
@@ -90,11 +96,44 @@ defBlock(B.SAPLING_OAK, Object.assign({}, plant, { name: 'Oak Sapling', tex: 'sa
 defBlock(B.SAPLING_BIRCH, Object.assign({}, plant, { name: 'Birch Sapling', tex: 'sapling_birch' }));
 defBlock(B.SAPLING_SPRUCE, Object.assign({}, plant, { name: 'Spruce Sapling', tex: 'sapling_spruce' }));
 defBlock(B.BED, { name: 'Bed', tex: { top: 'bed_top', bottom: 'oak_planks', side: 'bed_side' }, opaque: false, render: RT_BED, filter: 0, hardness: 0.2, sound: 'wool', interact: 'bed' });
+// ---- Flowers & plants -------------------------------------------------------
+const FLOWERS = [
+  [B.BLUE_ORCHID, 'Blue Orchid', 'blue_orchid'], [B.ALLIUM, 'Allium', 'allium'], [B.AZURE_BLUET, 'Azure Bluet', 'azure_bluet'],
+  [B.TULIP_RED, 'Red Tulip', 'tulip_red'], [B.TULIP_ORANGE, 'Orange Tulip', 'tulip_orange'], [B.TULIP_WHITE, 'White Tulip', 'tulip_white'],
+  [B.TULIP_PINK, 'Pink Tulip', 'tulip_pink'], [B.OXEYE_DAISY, 'Oxeye Daisy', 'oxeye_daisy'], [B.CORNFLOWER, 'Cornflower', 'cornflower'],
+  [B.LILY_OF_THE_VALLEY, 'Lily of the Valley', 'lily_of_the_valley'],
+];
+for (const [id, name, tex] of FLOWERS) defBlock(id, Object.assign({}, plant, { name, tex }));
+// Two block tall plants: [lower, upper, name, texture base, drop of lower]
+const DOUBLE_PLANTS = [
+  [B.TALL_GRASS, B.TALL_GRASS_TOP, 'Tall Grass', 'tall_grass', () => Math.random() < 0.15 ? I.WHEAT_SEEDS : 0],
+  [B.LARGE_FERN, B.LARGE_FERN_TOP, 'Large Fern', 'large_fern', 0],
+  [B.SUNFLOWER, B.SUNFLOWER_TOP, 'Sunflower', 'sunflower', null],
+  [B.LILAC, B.LILAC_TOP, 'Lilac', 'lilac', null],
+  [B.ROSE_BUSH, B.ROSE_BUSH_TOP, 'Rose Bush', 'rose_bush', null],
+  [B.PEONY, B.PEONY_TOP, 'Peony', 'peony', null],
+];
+const DOUBLE_LOWER = new Uint8Array(256), DOUBLE_UPPER = new Uint8Array(256);
+for (const [lo, up, name, tex, drop] of DOUBLE_PLANTS) {
+  defBlock(lo, Object.assign({}, plant, { name, tex: tex + '_bottom', icon: tex + '_top', replaceable: drop !== null, drop: drop === null ? lo : drop, upper: up }));
+  defBlock(up, Object.assign({}, plant, { name, tex: tex + '_top', replaceable: drop !== null, drop: drop === null ? lo : drop, lower: lo, hidden: true }));
+  DOUBLE_LOWER[lo] = up; DOUBLE_UPPER[up] = lo;
+}
+defBlock(B.BROWN_MUSHROOM, Object.assign({}, plant, { name: 'Brown Mushroom', tex: 'brown_mushroom', light: 1 }));
+defBlock(B.RED_MUSHROOM, Object.assign({}, plant, { name: 'Red Mushroom', tex: 'red_mushroom' }));
+defBlock(B.SUGAR_CANE, Object.assign({}, plant, { name: 'Sugar Cane', tex: 'sugar_cane' }));
+defBlock(B.BUSH, Object.assign({}, plant, { name: 'Bush', tex: 'bush', replaceable: true, drop: () => Math.random() < 0.3 ? I.STICK : 0 }));
+defBlock(B.BERRY_BUSH, Object.assign({}, plant, { name: 'Sweet Berry Bush', tex: 'berry_bush', interact: 'harvest', drop: () => I.SWEET_BERRIES }));
+defBlock(B.BERRY_BUSH_EMPTY, Object.assign({}, plant, { name: 'Sweet Berry Bush', tex: 'berry_bush_empty', hidden: true, drop: () => I.SWEET_BERRIES }));
+defBlock(B.LILY_PAD, { name: 'Lily Pad', tex: 'lily_pad', solid: false, opaque: false, render: RT_FLAT, cutout: true, hardness: 0, sound: 'grass' });
+defBlock(B.PUMPKIN, { name: 'Pumpkin', tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side' }, hardness: 1, tool: 'axe', sound: 'wood' });
+defBlock(B.JACK_O_LANTERN, { name: "Jack o'Lantern", tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'jack_o_lantern' }, hardness: 1, tool: 'axe', sound: 'wood', light: 15, facing: true });
+
 WOOLS.forEach((w, i) => defBlock(B.WOOL_WHITE + i, { name: w[0].toUpperCase() + w.slice(1) + ' Wool', tex: 'wool_' + w, hardness: 0.8, sound: 'wool' }));
 
 // ---- Items -----------------------------------------------------------------
 const ITEMS = [];
-I.WHEAT_SEEDS = 273;
+I.WHEAT_SEEDS = 273; I.PAPER = 274; I.BOWL = 275; I.MUSHROOM_STEW = 276; I.SWEET_BERRIES = 277; I.PUMPKIN_PIE = 278;
 function defItem(id, d) {
   ITEMS[id] = Object.assign({ id, name: 'Item', tile: 'stick', stack: 64 }, d);
   return ITEMS[id];
@@ -117,6 +156,11 @@ defItem(I.FLINT_AND_STEEL, { name: 'Flint and Steel', tile: 'flint_and_steel', s
 defItem(I.BUCKET, { name: 'Bucket', tile: 'bucket', stack: 16 });
 defItem(I.WATER_BUCKET, { name: 'Water Bucket', tile: 'water_bucket', stack: 1 });
 defItem(I.WHEAT_SEEDS, { name: 'Seeds', tile: 'wheat_seeds' });
+defItem(I.PAPER, { name: 'Paper', tile: 'paper' });
+defItem(I.BOWL, { name: 'Bowl', tile: 'bowl' });
+defItem(I.MUSHROOM_STEW, { name: 'Mushroom Stew', tile: 'mushroom_stew', stack: 1, food: 6, returns: I.BOWL });
+defItem(I.SWEET_BERRIES, { name: 'Sweet Berries', tile: 'sweet_berries', food: 2, places: B.BERRY_BUSH });
+defItem(I.PUMPKIN_PIE, { name: 'Pumpkin Pie', tile: 'pumpkin_pie', food: 8 });
 
 const TOOL_MATS = [
   { key: 'wooden', name: 'Wooden', tier: 0, speed: 2, dur: 59, dmg: 0 },
@@ -155,6 +199,7 @@ const RENDER = new Uint8Array(256);
 const EMIT = new Uint8Array(256);
 const FILTER = new Uint8Array(256);
 const TRANS = new Uint8Array(256);
+const TINT = new Uint8Array(256);  // biome-tinted greens
 const CULLSAME = new Uint8Array(256);
 const FACE_TEX = new Uint16Array(256 * 6);
 const BLOCK_TOP = new Float32Array(256).fill(1);  // collision height
@@ -174,6 +219,7 @@ function initBlockTables() {
     FILTER[id] = b.opaque ? 15 : b.filter;
     TRANS[id] = b.trans ? 1 : 0;
     CULLSAME[id] = b.cullSame ? 1 : 0;
+    TINT[id] = [B.GRASS, B.TALLGRASS, B.FERN, B.OAK_LEAVES, B.TALL_GRASS, B.TALL_GRASS_TOP, B.LARGE_FERN, B.LARGE_FERN_TOP, B.BUSH, B.LILY_PAD].includes(id) ? 1 : 0;
     if (b.render === RT_NONE) continue;
     let top, bottom, side, front;
     if (typeof b.tex === 'string') top = bottom = side = front = b.tex;
@@ -187,6 +233,7 @@ function initBlockTables() {
 function itemTile(id) {
   if (id < 256) {
     const b = BLOCKS[id];
+    if (b.icon) return tileIndex(b.icon);
     return tileIndex(typeof b.tex === 'string' ? b.tex : (b.tex.front || b.tex.side));
   }
   return tileIndex(ITEMS[id].tile);

@@ -86,9 +86,9 @@ function raycastBlocks(world, ox, oy, oz, dx, dy, dz, maxDist, pickLiquid = fals
   for (let i = 0; i < 256 && t <= maxDist; i++) {
     const id = world.getBlock(x, y, z);
     if (id !== B.AIR && (pickLiquid ? true : RENDER[id] !== RT_LIQUID)) {
-      if (RENDER[id] === RT_CROSS || RENDER[id] === RT_TORCH) {
-        // small hitbox for plants/torches
-        const hb = id === B.TORCH ? [0.35, 0, 0.35, 0.65, 0.65, 0.65] : [0.15, 0, 0.15, 0.85, 0.8, 0.85];
+      if (RENDER[id] === RT_CROSS || RENDER[id] === RT_TORCH || RENDER[id] === RT_FLAT) {
+        // small hitbox for plants/torches/lily pads
+        const hb = id === B.TORCH ? [0.35, 0, 0.35, 0.65, 0.65, 0.65] : RENDER[id] === RT_FLAT ? [0, 0, 0, 1, 0.1, 1] : [0.15, 0, 0.15, 0.85, 0.8, 0.85];
         if (rayBox(ox, oy, oz, dx, dy, dz, x + hb[0], y + hb[1], z + hb[2], x + hb[3], y + hb[4], z + hb[5]) !== null || id === B.TORCH)
           return { x, y, z, nx, ny, nz, dist: t, id };
       } else return { x, y, z, nx, ny, nz, dist: t, id };

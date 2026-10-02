@@ -21,6 +21,7 @@ class TerrainGenerator {
     this.nCave2 = new SimplexNoise(s + 8);
     this.nCave3 = new SimplexNoise(s + 9);
     this.nSurf = new SimplexNoise(s + 10);
+    this.nFlower = new SimplexNoise(s + 11);
     this.colCache = new Map();
   }
 
@@ -192,25 +193,95 @@ class TerrainGenerator {
     vein(B.DIRT, 6, 18, 20, 100);
 
     // --- Surface decorations (plants) ---
+    const at = (lx, y, lz) => (y * 16 + lz) * 16 + lx;
+    const isAir = (lx, y, lz) => y < WORLD_H && blocks[at(lx, y, lz)] === B.AIR;
+    const nearWater = (lx, y, lz) => {
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = lx + dx, nz = lz + dz;
+        if (nx < 0 || nx > 15 || nz < 0 || nz > 15) continue;
+        if (blocks[at(nx, y, nz)] === B.WATER) return true;
+      }
+      return false;
+    };
+    const placeDouble = (lx, y, lz, lower) => {
+      if (!isAir(lx, y, lz) || !isAir(lx, y + 1, lz)) return;
+      blocks[at(lx, y, lz)] = lower; blocks[at(lx, y + 1, lz)] = DOUBLE_LOWER[lower];
+    };
     for (let lz = 0; lz < 16; lz++) for (let lx = 0; lx < 16; lx++) {
       const col = cols[lz * 16 + lx];
       const y = col.h + 1;
-      if (y >= WORLD_H - 1) continue;
-      const ground = blocks[((y - 1) * 16 + lz) * 16 + lx];
-      const idx = (y * 16 + lz) * 16 + lx;
-      if (blocks[idx] !== B.AIR) continue;
-      const r = hash2(x0 + lx, z0 + lz, seed + 31);
-      if (ground === B.GRASS) {
-        const grassy = col.biome === BIOME.PLAINS ? 0.22 : col.biome === BIOME.TAIGA ? 0.12 : 0.1;
-        if (r < grassy) blocks[idx] = col.biome === BIOME.TAIGA && r < 0.05 ? B.FERN : B.TALLGRASS;
-        else if (r < grassy + 0.012) blocks[idx] = B.DANDELION;
-        else if (r < grassy + 0.02) blocks[idx] = B.ROSE;
-      } else if (ground === B.SAND && col.biome === BIOME.DESERT) {
-        if (r < 0.006) {
-          const hgt = 1 + Math.floor(hash2(x0 + lx, z0 + lz, seed + 32) * 3);
-          // cactus needs free sides
-          for (let k = 0; k < hgt && y + k < WORLD_H; k++) blocks[((y + k) * 16 + lz) * 16 + lx] = B.CACTUS;
-        } else if (r < 0.012) blocks[idx] = B.DEAD_BUSH;
+      if (y >= WORLD_H - 3) continue;
+      const ground = blocks[at(lx, y - 1, lz)];
+      if (blocks[at(lx, y, lz)] !== B.AIR) {
+        // lily pads on calm shallow water
+        if (blocks[at(lx, y, lz)] === B.WATER && col.h >= SEA_LEVEL - 4 && blocks[at(lx, SEA_LEVEL + 1, lz)] === B.AIR && blocks[at(lx, SEA_LEVEL, lz)] === B.WATER &&
+          (col.biome === BIOME.OCEAN && col.humid > 0.25) && hash2(x0 + lx, z0 + lz, seed + 41) < 0.08) blocks[at(lx, SEA_LEVEL + 1, lz)] = B.LILY_PAD;
+        continue;
+      }
+      const wx = x0 + lx, wz = z0 + lz;
+      const r = hash2(wx, wz, seed + 31);
+      const r2 = hash2(wx, wz, seed + 32);
+      const patch = this.nFlower.noise2D(wx / 48, wz / 48);   // which flower grows here (clusters)
+      const meadow = this.nFlower.noise2D(wx / 90 + 300, wz / 90 - 300); // flower field density
+      if (ground === B.GRASS || ground === B.DIRT) {
+        // sugar cane along water
+        if (nearWater(lx, y - 1, lz) && r < 0.12) {
+          const hgt = 1 + Math.floor(r2 * 3);
+          for (let k = 0; k < hgt && isAir(lx, y + k, lz); k++) blocks[at(lx, y + k, lz)] = B.SUGAR_CANE;
+          continue;
+        }
+        if (ground === B.DIRT) continue;
+        let flowers, flowerRate, grassRate, tallRate = 0.02;
+        switch (col.biome) {
+          case BIOME.PLAINS:
+            flowers = patch < -0.45 ? [B.SUNFLOWER] : patch < -0.15 ? [B.TULIP_RED, B.TULIP_ORANGE, B.TULIP_WHITE, B.TULIP_PINK] : patch < 0.2 ? [B.DANDELION, B.ROSE, B.OXEYE_DAISY] : patch < 0.5 ? [B.AZURE_BLUET, B.CORNFLOWER, B.OXEYE_DAISY] : [B.ROSE, B.CORNFLOWER, B.DANDELION];
+            flowerRate = meadow > 0.35 ? 0.22 : 0.018; grassRate = 0.28; tallRate = 0.05; break;
+          case BIOME.FOREST:
+            flowers = patch < -0.3 ? [B.LILAC, B.ROSE_BUSH, B.PEONY] : patch < 0.2 ? [B.DANDELION, B.ROSE, B.LILY_OF_THE_VALLEY] : [B.ALLIUM, B.TULIP_PINK, B.LILY_OF_THE_VALLEY, B.CORNFLOWER];
+            flowerRate = meadow > 0.3 ? 0.16 : 0.015; grassRate = 0.14; break;
+          case BIOME.BIRCH_FOREST:
+            flowers = patch < 0 ? [B.LILAC, B.PEONY, B.ALLIUM] : [B.ALLIUM, B.AZURE_BLUET, B.OXEYE_DAISY, B.LILY_OF_THE_VALLEY];
+            flowerRate = meadow > 0.3 ? 0.14 : 0.02; grassRate = 0.14; break;
+          case BIOME.TAIGA:
+            flowers = [B.CORNFLOWER, B.DANDELION]; flowerRate = 0.006; grassRate = 0.1; break;
+          case BIOME.MOUNTAINS:
+            flowers = [B.CORNFLOWER, B.AZURE_BLUET, B.ALLIUM]; flowerRate = 0.03; grassRate = 0.12; break;
+          default:
+            flowers = [B.DANDELION, B.ROSE]; flowerRate = 0.01; grassRate = 0.1;
+        }
+        if (col.humid > 0.45 && nearWater(lx, y - 1, lz) && r < 0.3) { blocks[at(lx, y, lz)] = B.BLUE_ORCHID; continue; }
+        if (r < flowerRate) {
+          const f = flowers[Math.floor(r2 * flowers.length)];
+          if (DOUBLE_LOWER[f]) placeDouble(lx, y, lz, f); else blocks[at(lx, y, lz)] = f;
+        } else if (r < flowerRate + grassRate) {
+          const taiga = col.biome === BIOME.TAIGA;
+          if (r2 < tallRate * 4) placeDouble(lx, y, lz, taiga ? B.LARGE_FERN : B.TALL_GRASS);
+          else blocks[at(lx, y, lz)] = taiga && r2 < 0.5 ? B.FERN : B.TALLGRASS;
+        } else if (r < flowerRate + grassRate + 0.012) {
+          if (col.biome === BIOME.TAIGA) blocks[at(lx, y, lz)] = B.BERRY_BUSH;
+          else if (col.biome === BIOME.FOREST || col.biome === BIOME.BIRCH_FOREST) blocks[at(lx, y, lz)] = r2 < 0.25 ? (r2 < 0.12 ? B.BROWN_MUSHROOM : B.RED_MUSHROOM) : B.BUSH;
+          else if (col.biome === BIOME.PLAINS && r2 < 0.08) blocks[at(lx, y, lz)] = B.PUMPKIN;
+          else blocks[at(lx, y, lz)] = B.BUSH;
+        }
+      } else if (ground === B.SAND) {
+        if (nearWater(lx, y - 1, lz) && r < 0.1 && col.biome !== BIOME.OCEAN) {
+          const hgt = 1 + Math.floor(r2 * 3);
+          for (let k = 0; k < hgt && isAir(lx, y + k, lz); k++) blocks[at(lx, y + k, lz)] = B.SUGAR_CANE;
+        } else if (col.biome === BIOME.DESERT) {
+          if (r < 0.006) {
+            const hgt = 1 + Math.floor(r2 * 3);
+            for (let k = 0; k < hgt && y + k < WORLD_H; k++) blocks[at(lx, y + k, lz)] = B.CACTUS;
+          } else if (r < 0.014) blocks[at(lx, y, lz)] = B.DEAD_BUSH;
+        }
+      }
+    }
+    // mushrooms on dark cave floors
+    for (let lz = 0; lz < 16; lz++) for (let lx = 0; lx < 16; lx++) {
+      const top = cols[lz * 16 + lx].h - 6;
+      for (let y = 12; y < top; y++) {
+        if (blocks[at(lx, y, lz)] !== B.AIR || blocks[at(lx, y - 1, lz)] !== B.STONE) continue;
+        const r = hash3(x0 + lx, y, z0 + lz, seed + 51);
+        if (r < 0.006) blocks[at(lx, y, lz)] = r < 0.003 ? B.BROWN_MUSHROOM : B.RED_MUSHROOM;
       }
     }
 

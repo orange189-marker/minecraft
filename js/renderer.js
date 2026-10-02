@@ -8,6 +8,7 @@ precision highp float;
 in vec3 aPos;
 in vec2 aUV;
 in vec4 aLight;
+in vec2 aBiome;
 uniform mat4 uProjView;
 uniform vec3 uOffset;
 uniform float uPosScale;
@@ -17,10 +18,19 @@ uniform vec2 uFog;
 out vec2 vUV;
 out vec3 vLight;
 out float vFog;
+out vec3 vTint;
 flat out int vFlag;
+// Biome grass colour from temperature (x) and humidity (y), relative to the texture's base green
+vec3 grassTint(vec2 th) {
+  vec3 cold = mix(vec3(0.52, 0.66, 0.42), vec3(0.32, 0.58, 0.40), th.y);
+  vec3 hot = mix(vec3(0.74, 0.70, 0.27), vec3(0.24, 0.72, 0.13), th.y);
+  return mix(cold, hot, th.x) / vec3(0.43, 0.66, 0.28);
+}
 void main() {
   vec3 p = aPos * uPosScale + uOffset;
-  int flag = int(aLight.w * 255.0 + 0.5);
+  int flagAll = int(aLight.w * 255.0 + 0.5);
+  int flag = flagAll & 15;
+  vTint = (flagAll & 16) != 0 ? grassTint(aBiome) : vec3(-1.0);
   if (flag == 1) {
     p.x += sin(uTime * 1.8 + p.x * 0.6 + p.z * 0.4) * 0.06;
     p.z += cos(uTime * 1.5 + p.x * 0.4 + p.z * 0.6) * 0.05;
@@ -41,6 +51,7 @@ precision highp float;
 in vec2 vUV;
 in vec3 vLight;
 in float vFog;
+in vec3 vTint;
 flat in int vFlag;
 uniform sampler2D uTex;
 uniform float uDaylight;
@@ -56,6 +67,10 @@ float curve(float l) {
 void main() {
   vec4 c = texture(uTex, vUV);
   if (c.a < 0.1) discard;
+  if (vTint.x >= 0.0) {
+    float m = smoothstep(0.02, 0.1, c.g - max(c.r, c.b));
+    c.rgb = mix(c.rgb, clamp(c.rgb * vTint, 0.0, 1.0), m);
+  }
   float sky = vLight.x * uDaylight;
   float bl = vLight.y;
   float sb = curve(sky);
@@ -236,7 +251,7 @@ class Renderer {
     };
     const p = gl.createProgram();
     gl.attachShader(p, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(p, mk(gl.FRAGMENT_SHADER, fs));
-    gl.bindAttribLocation(p, 0, 'aPos'); gl.bindAttribLocation(p, 1, 'aUV'); gl.bindAttribLocation(p, 2, 'aLight');
+    gl.bindAttribLocation(p, 0, 'aPos'); gl.bindAttribLocation(p, 1, 'aUV'); gl.bindAttribLocation(p, 2, 'aLight'); gl.bindAttribLocation(p, 3, 'aBiome');
     gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
     return p;
@@ -315,6 +330,8 @@ class Renderer {
     gl.vertexAttribPointer(1, 2, gl.UNSIGNED_SHORT, false, 16, 6);
     gl.enableVertexAttribArray(2);
     gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 16, 10);
+    gl.enableVertexAttribArray(3);
+    gl.vertexAttribPointer(3, 2, gl.UNSIGNED_BYTE, true, 16, 14);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     gl.bindVertexArray(null);
     return { vao, vbo };

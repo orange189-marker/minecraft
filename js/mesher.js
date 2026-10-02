@@ -55,8 +55,9 @@ class MeshBuffer {
       nd.set(this.data); this.data = nd;
     }
   }
-  vert(x, y, z, u, v, sky, blk, shade, flags) {
+  vert(x, y, z, u, v, sky, blk, shade, flags, biome = 0) {
     const d = this.data, o = this.n * 8;
+    d[o + 7] = biome;
     d[o] = x * POS_SCALE + 0.5; d[o + 1] = y * POS_SCALE + 0.5; d[o + 2] = z * POS_SCALE + 0.5;
     d[o + 3] = u; d[o + 4] = v;
     d[o + 5] = (sky * 17) | ((blk * 17) << 8);
@@ -92,6 +93,12 @@ function fillPadded(world, chunk) {
 function buildChunkMesh(world, chunk) {
   if (!FACING_TABLE[B.FURNACE]) for (let i = 0; i < 256; i++) FACING_TABLE[i] = BLOCKS[i] && BLOCKS[i].facing ? 1 : 0;
   ChunkMeshCtx.cx = chunk.cx; ChunkMeshCtx.cz = chunk.cz;
+  // biome colour grid at block corners: temperature | humidity << 8
+  const gen = world.gen;
+  for (let z = 0; z <= 16; z++) for (let x = 0; x <= 16; x++) {
+    const c = gen.column(chunk.cx * 16 + x, chunk.cz * 16 + z);
+    TINT_GRID[z * 17 + x] = Math.round(clamp(c.temp * 0.55 + 0.5, 0, 1) * 255) | (Math.round(clamp(c.humid * 0.55 + 0.5, 0, 1) * 255) << 8);
+  }
   fillPadded(world, chunk);
   const op = MESH_OPAQUE, tr = MESH_TRANS;
   op.reset(); tr.reset();
@@ -111,6 +118,7 @@ function buildChunkMesh(world, chunk) {
     else if (rt === RT_TORCH) torchBlock(op, b, i, x, y, z);
     else if (rt === RT_CACTUS) cactusBlock(op, b, i, x, y, z);
     else if (rt === RT_BED) bedBlock(op, b, i, x, y, z);
+    else if (rt === RT_FLAT) flatBlock(op, b, i, x, y, z);
   }
   return { opaque: op.slice(), trans: tr.slice(), nOpaque: op.n, nTrans: tr.n };
 }
@@ -119,6 +127,7 @@ function cubeBlock(op, tr, b, i, x, y, z) {
   const out = TRANS[b] ? tr : op;
   const cullSame = CULLSAME[b];
   const facing = FACING_TABLE[b] ? FACING_FACE[PM[i] & 3] : -1;
+  const tint = TINT[b] ? TINT_FLAG : 0;
   const ao = [0, 0, 0, 0], sk = [0, 0, 0, 0], bk = [0, 0, 0, 0];
   for (let f = 0; f < 6; f++) {
     const ni = i + NOFF[f];
@@ -149,7 +158,7 @@ function cubeBlock(op, tr, b, i, x, y, z) {
     for (let k = 0; k < 4; k++) {
       const c = flip ? (k + 1) & 3 : k;
       const cc = corners[c];
-      out.vert(x + cc[0], y + cc[1], z + cc[2], tu + CORNER_UV[c][0], tv + CORNER_UV[c][1], sk[c], bk[c], shade * AO_CURVE[ao[c]], 0);
+      out.vert(x + cc[0], y + cc[1], z + cc[2], tu + CORNER_UV[c][0], tv + CORNER_UV[c][1], sk[c], bk[c], shade * AO_CURVE[ao[c]], tint, tint ? TINT_GRID[(z + cc[2]) * 17 + x + cc[0]] : 0);
     }
   }
 }
@@ -159,7 +168,9 @@ function crossBlock(op, b, i, x, y, z) {
   const tu = (tile % ATLAS_COLS) * 16, tv = Math.floor(tile / ATLAS_COLS) * 16;
   const l = PL[i], s = l >> 4, bl = l & 15;
   const wx = x + (ChunkMeshCtx.cx << 4), wz = z + (ChunkMeshCtx.cz << 4);
-  const ox = (hash2(wx, wz, 11) - 0.5) * 0.3, oz = (hash2(wx, wz, 12) - 0.5) * 0.3;
+  const still = b === B.SUGAR_CANE;
+  const ox = still ? 0 : (hash2(wx, wz, 11) - 0.5) * 0.3, oz = still ? 0 : (hash2(wx, wz, 12) - 0.5) * 0.3;
+  const tint = TINT[b] ? TINT_FLAG : 0, tb = tint ? TINT_GRID[z * 17 + x] : 0;
   const a = 0.15 + 0.0, bb = 0.85;
   const quads = [
     [[a, 0, a], [bb, 0, bb], [bb, 1, bb], [a, 1, a]],
@@ -170,11 +181,14 @@ function crossBlock(op, b, i, x, y, z) {
   op.ensure(16);
   for (const q of quads) for (let c = 0; c < 4; c++) {
     const p = q[c];
-    op.vert(x + p[0] + ox, y + p[1], z + p[2] + oz, tu + CORNER_UV[c][0], tv + CORNER_UV[c][1], s, bl, 0.9, p[1] === 1 ? 1 : 0);
+    const wave = p[1] === 1 && !DOUBLE_LOWER[b] && b !== B.SUGAR_CANE ? 1 : 0;
+    op.vert(x + p[0] + ox, y + p[1], z + p[2] + oz, tu + CORNER_UV[c][0], tv + CORNER_UV[c][1], s, bl, 0.9, wave | tint, tb);
   }
 }
 
 const ChunkMeshCtx = { cx: 0, cz: 0 };
+const TINT_GRID = new Uint16Array(17 * 17);
+const TINT_FLAG = 16;
 
 function torchBlock(op, b, i, x, y, z) {
   const tile = FACE_TEX[b * 6];
@@ -245,6 +259,19 @@ function bedBlock(op, b, i, x, y, z) {
       op.vert(x + cc[0], y + py, z + cc[2], tu + CORNER_UV[c][0], tv + v, s, bl, FACE_SHADE[f], 0);
     }
   }
+}
+
+function flatBlock(op, b, i, x, y, z) {
+  const tile = FACE_TEX[b * 6];
+  const tu = (tile % ATLAS_COLS) * 16, tv = Math.floor(tile / ATLAS_COLS) * 16;
+  const l = PL[i], s = l >> 4, bl = l & 15;
+  const h = 1 / 64, tb = TINT_GRID[z * 17 + x];
+  // rotate texture per block so pads look varied
+  const rot = Math.floor(hash2(x + (ChunkMeshCtx.cx << 4), z + (ChunkMeshCtx.cz << 4), 7) * 4);
+  const pts = [[0, 1], [1, 1], [1, 0], [0, 0]];
+  op.ensure(8);
+  for (let c = 0; c < 4; c++) { const q = pts[c], uv = CORNER_UV[(c + rot) & 3]; op.vert(x + q[0], y + h, z + q[1], tu + uv[0], tv + uv[1], s, bl, 1, TINT_FLAG, tb); }
+  for (let c = 3; c >= 0; c--) { const q = pts[c], uv = CORNER_UV[(c + rot) & 3]; op.vert(x + q[0], y + h, z + q[1], tu + uv[0], tv + uv[1], s, bl, 0.6, TINT_FLAG, tb); }
 }
 
 function liquidHeight(b, i) {

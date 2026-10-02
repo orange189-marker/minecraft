@@ -54,6 +54,17 @@ shapeless([B.WOOL_WHITE, B.DIRT], B.WOOL_BROWN);
 shapeless([B.WOOL_WHITE, I.DIAMOND], B.WOOL_CYAN);
 shapeless([B.WOOL_WHITE, B.ICE], B.WOOL_BLUE);
 shapeless([B.WOOL_BLUE, B.ROSE], B.WOOL_PURPLE);
+// flowers -> dyed wool
+for (const [flower, wool] of [[B.BLUE_ORCHID, B.WOOL_CYAN], [B.ALLIUM, B.WOOL_PURPLE], [B.AZURE_BLUET, B.WOOL_GRAY], [B.TULIP_RED, B.WOOL_RED],
+  [B.TULIP_ORANGE, B.WOOL_ORANGE], [B.TULIP_PINK, B.WOOL_PINK], [B.CORNFLOWER, B.WOOL_BLUE], [B.SUNFLOWER, B.WOOL_YELLOW],
+  [B.LILAC, B.WOOL_PURPLE], [B.ROSE_BUSH, B.WOOL_RED], [B.PEONY, B.WOOL_PINK]]) shapeless([B.WOOL_WHITE, flower], wool);
+shaped(['SSS'], { S: B.SUGAR_CANE }, I.PAPER, 3);
+shaped(['PPP', 'AAA', 'PPP'], { P: 'planks', A: I.PAPER }, B.BOOKSHELF);
+shaped(['P P', ' P '], { P: 'planks' }, I.BOWL, 4);
+shapeless([B.BROWN_MUSHROOM, B.RED_MUSHROOM, I.BOWL], I.MUSHROOM_STEW);
+shapeless([B.PUMPKIN, B.TORCH], B.JACK_O_LANTERN);
+shapeless([B.PUMPKIN, I.SWEET_BERRIES, I.WHEAT_SEEDS], I.PUMPKIN_PIE);
+shapeless([B.COBBLE, B.BUSH], B.MOSSY_COBBLE);
 // tools
 {
   const mats = { wooden: 'planks', stone: 'stone', iron: I.IRON_INGOT, golden: I.GOLD_INGOT, diamond: I.DIAMOND };

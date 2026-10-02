@@ -18,7 +18,9 @@ Click **Singleplayer → Create New World**, pick a name, an optional seed and a
 
 - **Infinite procedural worlds** from a seed: continents and oceans, beaches, plains, forests, birch forests, taiga, snowy tundra, deserts and snow-capped mountains.
 - **Caves and ores**: spaghetti caves, large caverns, lava lakes deep down, plus coal, iron, gold and diamond ores.
-- **Trees and plants**: oak, birch, spruce and big oak trees, tall grass, ferns, flowers, cacti and dead bushes. Saplings drop from leaves and grow into trees.
+- **Trees and plants**: oak, birch, spruce and big oak trees. Saplings drop from leaves and grow into trees.
+- **Flowers and foliage**: 13 flowers (tulips, orchids, alliums, daisies, cornflowers, lilies of the valley and more) that grow in clustered **flower meadows**, plus 2-block sunflowers, lilacs, rose bushes, peonies, tall grass and large ferns. There are also bushes, sweet berry bushes you can harvest, mushrooms (on the surface and in caves), sugar cane by the water, lily pads, pumpkins and jack o'lanterns.
+- **Biome colours**: grass, leaves and foliage are tinted by temperature and humidity: lush in wet forests, yellow-green in hot dry areas, cooler in the cold.
 - **Lighting**: smooth lighting with ambient occlusion, sky light and coloured block light (torches, glowstone, lava, lit furnaces), and a full day/night cycle with a sun, moon, stars, sunsets and drifting 3D clouds.
 - **Survival mode**: health, hunger, air, fall damage, drowning, lava, cactus, respawning and a bed that skips the night and sets your spawn.
 - **Creative mode**: flying (double-tap Space), instant breaking and a searchable creative inventory.

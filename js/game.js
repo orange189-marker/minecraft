@@ -373,7 +373,10 @@ class Game {
       if (this.eatTimer >= 1.4) {
         this.eatTimer = 0;
         p.eat(def.food);
-        if (p.mode === 'survival') p.inventory.consumeHeld(1);
+        if (p.mode === 'survival') {
+          p.inventory.consumeHeld(1);
+          if (def.returns) { const left = p.inventory.add(def.returns, 1); if (left) this.dropFromPlayer(def.returns, left); }
+        }
         this.audio.play('burp');
         if (held.id === I.ROTTEN_FLESH && Math.random() < 0.5) p.exhaustion += 8;
       }
@@ -399,6 +402,12 @@ class Game {
         else if (def.interact === 'chest') { this.ui.openChest(w.getTile(t.x, t.y, t.z, 'chest')); this.audio.play('door', t.x, t.y, t.z); }
         else if (def.interact === 'furnace') this.ui.openFurnace(w.getTile(t.x, t.y, t.z, 'furnace'));
         else if (def.interact === 'bed') this.trySleep(t.x, t.y, t.z);
+        else if (def.interact === 'harvest') {
+          w.setBlock(t.x, t.y, t.z, B.BERRY_BUSH_EMPTY);
+          this.spawnDrop(I.SWEET_BERRIES, 1 + Math.floor(Math.random() * 3), t.x + 0.5, t.y + 0.5, t.z + 0.5);
+          this.audio.play('dig_grass', t.x, t.y, t.z);
+          p.swing = 1;
+        }
         return;
       }
       if (bid === B.TNT && heldId === I.FLINT_AND_STEEL) {
@@ -412,6 +421,18 @@ class Game {
     }
     if (!held) return;
     // buckets
+    // lily pads go on top of still water
+    if (heldId === B.LILY_PAD) {
+      const [dx, dy, dz] = p.lookDir();
+      const h = raycastBlocks(w, p.x, p.eyeY, p.z, dx, dy, dz, this.reach(), true);
+      if (h && h.id === B.WATER && w.getBlock(h.x, h.y + 1, h.z) === B.AIR) {
+        w.setBlock(h.x, h.y + 1, h.z, B.LILY_PAD);
+        this.audio.playDig(B.LILY_PAD, h.x, h.y + 1, h.z, 0.8);
+        if (p.mode === 'survival') p.inventory.consumeHeld(1);
+        p.swing = 1;
+      }
+      return;
+    }
     if (heldId === I.BUCKET) {
       const [dx, dy, dz] = p.lookDir();
       const h = raycastBlocks(w, p.x, p.eyeY, p.z, dx, dy, dz, this.reach(), true);
@@ -438,8 +459,9 @@ class Game {
       p.swing = 1;
       return;
     }
-    if (heldId >= 256) return;
-    const id = heldId;
+    const placeId = heldId >= 256 ? ITEMS[heldId].places : heldId;
+    if (!placeId) return;
+    const id = placeId;
     let meta = 0;
     const below = w.getBlock(px, py - 1, pz);
     if (id === B.TORCH) {
@@ -450,8 +472,11 @@ class Game {
       else if (t.nx === 1) meta = 1; else if (t.nx === -1) meta = 2; else if (t.nz === 1) meta = 3; else if (t.nz === -1) meta = 4;
       if (meta === 0 && !supp(px, py - 1, pz)) return;
       if (meta !== 0 && !supp(t.x, t.y, t.z)) return;
+    } else if (DOUBLE_LOWER[id]) {
+      if (!(below === B.GRASS || below === B.DIRT || below === B.SNOW_GRASS) || !BLOCKS[w.getBlock(px, py + 1, pz)].replaceable) return;
+      w.setBlock(px, py + 1, pz, DOUBLE_LOWER[id], 0, { noUpdate: true });
     } else if (RENDER[id] === RT_CROSS) {
-      if (id === B.DEAD_BUSH ? !(below === B.SAND || below === B.DIRT || below === B.GRASS) : !(below === B.GRASS || below === B.DIRT || below === B.SNOW_GRASS)) return;
+      if (!w.plantSupported(id, px, py, pz)) return;
     } else if (id === B.CACTUS) {
       if (below !== B.SAND && below !== B.CACTUS) return;
     }
@@ -824,6 +849,7 @@ class Game {
   selectionBox(t) {
     const id = this.world.getBlock(t.x, t.y, t.z);
     if (RENDER[id] === RT_CROSS) return { x0: t.x + 0.15, y0: t.y, z0: t.z + 0.15, x1: t.x + 0.85, y1: t.y + 0.8, z1: t.z + 0.85 };
+    if (RENDER[id] === RT_FLAT) return { x0: t.x, y0: t.y, z0: t.z, x1: t.x + 1, y1: t.y + 0.03, z1: t.z + 1 };
     if (id === B.BED) return { x0: t.x, y0: t.y, z0: t.z, x1: t.x + 1, y1: t.y + 0.5625, z1: t.z + 1 };
     if (id === B.TORCH) return { x0: t.x + 0.38, y0: t.y, z0: t.z + 0.38, x1: t.x + 0.62, y1: t.y + 0.65, z1: t.z + 0.62 };
     return { x0: t.x, y0: t.y, z0: t.z, x1: t.x + 1, y1: t.y + 1, z1: t.z + 1 };
