@@ -25,8 +25,37 @@ function pixelIcon(rows, pal, scale = 2) {
   return c.toDataURL();
 }
 
-const HEART_ROWS = ['.XX...XX.', 'XRRX.XRRX', 'XRWRXRRRX', 'XRRRRRRRX', 'XRRRRRRRX', '.XRRRRRX.', '..XRRRX..', '...XRX...', '....X....'];
-const FOOD_ROWS = ['......XX.', '.....XBBX', '....XBWBX', '...XMMXX.', '..XMMMMX.', '.XMMMMMX.', '.XMMMMX..', '.XMMMX...', '..XXX....'];
+// 9x9 pixel art, drawn 2x in the HUD
+const HEART_ROWS = [
+  '.KKK.KKK.',
+  'KHHLKLRRK',
+  'KHLRRRRDK',
+  'KLRRRRRDK',
+  'KRRRRRDDK',
+  '.KRRRDDK.',
+  '..KRDDK..',
+  '...KDK...',
+  '....K....',
+];
+const FOOD_ROWS = [
+  '......KK.',
+  '.....KWWK',
+  '.....KWGK',
+  '..KKKKGK.',
+  '.KLLLMGK.',
+  'KLHLMMMK.',
+  'KLLMMMDK.',
+  'KMMMMDDK.',
+  '.KKKKKK..',
+];
+const HEART_PAL = { K: '#120000', H: '#ffe0e0', L: '#ff5050', R: '#dc1414', D: '#8c0808' };
+const FOOD_PAL = { K: '#1c0f04', W: '#fbf7ee', G: '#c9bfa9', H: '#f2b07a', L: '#d9864a', M: '#b05a24', D: '#743410' };
+const EMPTY_HEART = { K: '#120000', E: '#2e0808', F: '#4a1212' };
+const EMPTY_FOOD = { K: '#1c0f04', E: '#2a1a0c', F: '#3e2814' };
+// Replace interior colours with "empty" shades (lighter rim at top-left)
+function emptied(rows, keep) {
+  return rows.map((r, y) => r.split('').map((c, x) => (c === '.' || c === 'K' || (keep && keep(x, y))) ? c : (x + y < 6 ? 'F' : 'E')).join(''));
+}
 const BUBBLE_ROWS = ['..XXXXX..', '.XLLLLLX.', 'XLWWLLLLX', 'XLWLLLLLX', 'XLLLLLLLX', 'XLLLLLLLX', 'XLLLLLLLX', '.XLLLLLX.', '..XXXXX..'];
 
 class UI {
@@ -42,12 +71,13 @@ class UI {
     this.cursorEl = document.getElementById('cursor-stack');
     this.tooltip = document.getElementById('tooltip');
     this.icons = {
-      heart: pixelIcon(HEART_ROWS, { X: '#1a0000', R: '#e01818', W: '#ffb0b0' }),
-      heartHalf: pixelIcon(HEART_ROWS.map((r) => r.slice(0, 4) + r.slice(4).replace(/[RW]/g, 'D')), { X: '#1a0000', R: '#e01818', W: '#ffb0b0', D: '#3a1010' }),
-      heartEmpty: pixelIcon(HEART_ROWS.map((r) => r.replace(/[RW]/g, 'D')), { X: '#1a0000', D: '#3a1010' }),
-      food: pixelIcon(FOOD_ROWS, { X: '#1a0d00', B: '#e8e0d0', W: '#ffffff', M: '#b0622a' }),
-      foodHalf: pixelIcon(FOOD_ROWS.map((r) => r.slice(0, 5).replace(/M/g, 'D') + r.slice(5)), { X: '#1a0d00', B: '#e8e0d0', W: '#ffffff', M: '#b0622a', D: '#3a2410' }),
-      foodEmpty: pixelIcon(FOOD_ROWS.map((r) => r.replace(/[MBW]/g, 'D')), { X: '#1a0d00', D: '#3a2410' }),
+      heart: pixelIcon(HEART_ROWS, HEART_PAL),
+      heartHalf: pixelIcon(emptied(HEART_ROWS, (x) => x <= 4), Object.assign({}, HEART_PAL, EMPTY_HEART)),
+      heartEmpty: pixelIcon(emptied(HEART_ROWS), EMPTY_HEART),
+      heartFlash: pixelIcon(HEART_ROWS.map((r) => r.replace(/K/g, 'W')), Object.assign({}, HEART_PAL, { W: '#ffffff' })),
+      food: pixelIcon(FOOD_ROWS, FOOD_PAL),
+      foodHalf: pixelIcon(emptied(FOOD_ROWS, (x) => x >= 4), Object.assign({}, FOOD_PAL, EMPTY_FOOD)),
+      foodEmpty: pixelIcon(emptied(FOOD_ROWS), EMPTY_FOOD),
       bubble: pixelIcon(BUBBLE_ROWS, { X: '#1a3a8a', L: '#5aa0ff', W: '#ffffff' }),
     };
     this.buildHUD();
@@ -110,12 +140,13 @@ class UI {
     const survival = p.mode === 'survival';
     document.getElementById('bars').style.display = survival ? 'flex' : 'none';
     if (survival) {
-      const key = Math.ceil(p.health) + ',' + p.food + ',' + Math.ceil(p.air) + ',' + (p.headInWater || p.air < p.maxAir);
+      const flash = p.hurtTime > 0 && Math.floor(p.hurtTime * 10) % 2 === 0;
+      const key = Math.ceil(p.health) + ',' + p.food + ',' + Math.ceil(p.air) + ',' + (p.headInWater || p.air < p.maxAir) + ',' + flash;
       if (key !== this.lastHud) {
         this.lastHud = key;
         const hp = Math.ceil(p.health);
         for (let i = 0; i < 10; i++) {
-          this.heartEls[i].src = hp >= (i + 1) * 2 ? this.icons.heart : hp === i * 2 + 1 ? this.icons.heartHalf : this.icons.heartEmpty;
+          this.heartEls[i].src = hp >= (i + 1) * 2 ? (flash ? this.icons.heartFlash : this.icons.heart) : hp === i * 2 + 1 ? this.icons.heartHalf : this.icons.heartEmpty;
           const f = p.food;
           this.foodEls[9 - i].src = f >= (i + 1) * 2 ? this.icons.food : f === i * 2 + 1 ? this.icons.foodHalf : this.icons.foodEmpty;
         }
@@ -125,6 +156,7 @@ class UI {
       }
       // low-health shake
       document.getElementById('hearts').classList.toggle('low', p.health <= 4);
+      document.getElementById('hunger').classList.toggle('low', p.food <= 6);
     }
   }
 

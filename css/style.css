@@ -42,9 +42,10 @@ img { image-rendering: pixelated; }
 .barcol { display: flex; flex-direction: column; gap: 2px; }
 .barcol.right { align-items: flex-end; }
 .iconrow { display: flex; gap: 0; height: 18px; }
-.iconrow img { width: 18px; height: 18px; }
+.iconrow img { width: 18px; height: 18px; margin-right: -2px; filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.35)); }
 #hunger { flex-direction: row; }
-#hearts.low img { animation: shake 0.25s infinite; }
+#hearts.low img, #hunger.low img { animation: shake 0.25s infinite; }
+#hearts.low img:nth-child(odd), #hunger.low img:nth-child(even) { animation-delay: -0.12s; }
 @keyframes shake { 0% { transform: translateY(0); } 50% { transform: translateY(-2px); } 100% { transform: translateY(1px); } }
 
 #hotbar {

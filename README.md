@@ -9,7 +9,7 @@ Open `index.html` in a modern desktop browser (Chrome, Edge or Firefox). It work
 You can also serve the folder:
 
 ```bash
-npx http-server .   # then open http://localhost:8080
+npm start   # serves on http://localhost:5088
 ```
 
 Click **Singleplayer → Create New World**, pick a name, an optional seed and a game mode, then click into the game to capture the mouse.
