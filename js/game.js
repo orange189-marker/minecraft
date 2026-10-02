@@ -19,6 +19,8 @@ class Game {
     this.audio = new AudioEngine();
     this.player = new Player();
     this.ui = new UI(this);
+    this.chat = new Chat(this);
+    this.rules = Object.assign({ peaceful: false }, DEFAULT_RULES);
     this.particles = new ParticleSystem();
     this.entities = [];
     this.dyn = new DynamicMesh(65536);
@@ -105,6 +107,8 @@ class Game {
     this.worldId = id;
     this.ui.root.innerHTML = ''; this.ui.root.className = ''; this.ui.screen = null;
     const world = new World(meta.seed, data ? data.world : null);
+    this.rules = Object.assign({ peaceful: false }, DEFAULT_RULES);
+    this.chat.close(); this.chat.log.innerHTML = '';
     this.setWorld(world);
     this.player = new Player();
     this.player.inventory.onChange = () => { this.invDirty = true; };
@@ -112,6 +116,7 @@ class Game {
       this.player.load(data.player);
       for (const md of data.mobs || []) if (MOB_TYPES[md.type]) this.entities.push(Mob.load(md));
       this.time = data.time || 1000;
+      Object.assign(this.rules, data.rules || {});
     } else {
       const sp = world.gen.findSpawn();
       this.player.x = sp.x; this.player.y = sp.y + 1; this.player.z = sp.z;
@@ -130,12 +135,14 @@ class Game {
   saveGame(silent) {
     if (this.state !== 'playing' || !this.worldId) return;
     const mobs = this.entities.filter((e) => e.isMob && !e.T.hostile && !e.dead && e.deathTime === 0).map((e) => e.serialize());
-    const data = { version: 1, time: this.time, player: this.player.serialize(), world: this.world.serialize(), mobs };
+    const data = { version: 1, time: this.time, rules: this.rules, player: this.player.serialize(), world: this.world.serialize(), mobs };
     const ok = SaveManager.saveWorld(this.worldId, data);
     if (!silent) this.ui.toast(ok ? 'World saved' : 'Save failed: browser storage is full');
   }
 
   quitToTitle() {
+    this.chat.close();
+    this.welcomed = false;
     this.saveGame(true);
     this.ui.close();
     this.unlockPointer();
@@ -241,6 +248,11 @@ class Game {
       if (code === 'KeyE') {
         if (ui.isGuiScreen()) { ui.close(); return; }
         if (!ui.isOpen()) { ui.openInventory(); return; }
+      }
+      if (!ui.isOpen() && (code === 'KeyT' || code === 'Enter' || code === 'NumpadEnter' || code === 'Slash')) {
+        e.preventDefault();
+        this.chat.open(code === 'Slash' ? '/' : '');
+        return;
       }
     }
     if (ui.isOpen()) { this.keys[code] = false; return; }
@@ -733,7 +745,7 @@ class Game {
           if (w.getBlock(ox, oy - 1, oz) === B.GRASS) this.entities.push(new Mob(type, ox + 0.5, oy, oz + 0.5));
         }
         passive += n;
-      } else if (eff <= 7 && hostile < 12 && ground !== B.WATER) {
+      } else if (!this.rules.peaceful && eff <= 7 && hostile < 12 && ground !== B.WATER) {
         const type = Math.random() < 0.6 ? 'zombie' : 'creeper';
         this.entities.push(new Mob(type, x + 0.5, sy, z + 0.5));
         hostile++;
@@ -828,7 +840,7 @@ class Game {
       document.getElementById('hud').style.display = '';
       this.state = 'playing';
       this.lockPointer();
-      this.ui.toast('Welcome to Blockhaven! Press E for inventory, Esc for menu.');
+      if (!this.welcomed) { this.welcomed = true; this.chat.info('Welcome to Blockhaven! Press E for inventory, T to chat, and type /help for commands.'); }
       this.invDirty = true;
     }
   }
@@ -838,7 +850,7 @@ class Game {
     const paused = ui.screen === 'pause' || ui.screen === 'options' || ui.screen === 'controls';
     this.updateInput();
     if (!paused) {
-      this.time += dt * 20;
+      if (this.rules.doDaylightCycle) this.time += dt * 20;
       this.tickAcc += dt;
       while (this.tickAcc >= 0.05) { this.tickAcc -= 0.05; w.tick(); w.randomTicks(p.x, p.z); }
       w.updateFurnaces(dt);
@@ -856,7 +868,7 @@ class Game {
       // merge item drops
       this.entities = this.entities.filter((e) => !e.dead);
       this.particles.update(dt, w);
-      this.updateSpawning(dt);
+      if (this.rules.doMobSpawning) this.updateSpawning(dt);
       if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 1.5);
       this.saveTimer += dt;
       if (this.saveTimer > 45) { this.saveTimer = 0; this.saveGame(true); }

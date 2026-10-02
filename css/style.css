@@ -63,6 +63,33 @@ img { image-rendering: pixelated; }
 #sleep { position: fixed; inset: 0; pointer-events: none; background: #000; opacity: 0; transition: opacity 0.8s; }
 #damage-flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(255,0,0,0) 40%, rgba(200,0,0,0.85)); opacity: 0; }
 
+/* ---------------- Chat ---------------- */
+#chat-log {
+  position: absolute; left: 6px; bottom: 132px; width: min(560px, 70vw); max-height: 40vh; overflow: hidden;
+  display: flex; flex-direction: column; pointer-events: none;
+}
+.chat-line { padding: 1px 8px; font-size: 21px; line-height: 1.15; background: rgba(0,0,0,0.42); text-shadow: 2px 2px 0 #3f3f3f; color: #fff; transition: opacity 0.8s; word-wrap: break-word; }
+.chat-line.old { opacity: 0; }
+.chat-open #chat-log { overflow-y: auto; pointer-events: auto; bottom: 52px; max-height: 55vh; }
+.chat-open .chat-line.old { opacity: 1; }
+.chat-line.info { color: #ffff7f; }
+.chat-line.success { color: #aaaaaa; font-style: italic; }
+.chat-line.error { color: #ff5555; }
+.chat-line.echo { color: #c8c8c8; }
+.chat-line.say { color: #ff77ff; }
+.chat-line.me { color: #e0e0e0; font-style: italic; }
+.chat-line.death { color: #ffffff; }
+#chat-bar { position: fixed; left: 4px; right: 4px; bottom: 6px; display: none; flex-direction: column; z-index: 40; }
+#chat-input {
+  width: 100%; height: 34px; padding: 0 8px; border: none; outline: none;
+  background: rgba(0,0,0,0.6); color: #fff; font-family: var(--font); font-size: 22px; text-shadow: 2px 2px 0 #3f3f3f;
+}
+#chat-hint {
+  display: none; align-self: flex-start; max-width: 100%; margin-bottom: 2px; padding: 2px 8px;
+  background: rgba(0,0,0,0.75); color: #b0b0b0; font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chat-open #crosshair { display: none; }
+
 /* ---------------- Overlay / screens ---------------- */
 #overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; }
 #overlay.open { display: flex; background: rgba(0,0,0,0.45); }

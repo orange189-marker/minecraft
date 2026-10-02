@@ -55,9 +55,35 @@ Click **Singleplayer → Create New World**, pick a name, an optional seed and a
 | Q / Ctrl+Q | Drop one item / drop whole stack |
 | Double-tap Space | Toggle flying (Creative) |
 | F1 / F3 / F5 | Hide HUD / debug info / camera perspective |
+| T / Enter | Open chat |
+| / | Open chat with a command |
 | Esc | Pause menu |
 
 In inventories: left click picks up or places a stack, right click splits a stack or places one item, and Shift + click quick-moves.
+
+## Chat and commands
+
+Press **T** to chat, or **/** to type a command. Press **Tab** to complete commands, items and mobs, and **↑/↓** to recall earlier messages. Coordinates accept `~` for "relative to me" (e.g. `/tp ~ ~10 ~`).
+
+| Command | What it does |
+| --- | --- |
+| `/help [command]` | List commands or explain one |
+| `/gamemode <survival\|creative>` | Switch game mode (`/gm c` works too) |
+| `/time <set\|add\|query> [day\|noon\|night\|midnight\|number]` | Change the time (`/day`, `/night` shortcuts) |
+| `/tp <x> <y> <z>` / `/tp spawn` | Teleport |
+| `/give <item> [count]` | Give items, e.g. `/give diamond_pickaxe`, `/give oak_planks 64` |
+| `/clear [item]` | Empty your inventory |
+| `/summon <mob> [x y z]` | Spawn pig, sheep, cow, chicken, zombie, creeper, tnt (`baby_cow` for babies) |
+| `/setblock <x> <y> <z> <block>` | Place one block |
+| `/fill <x1> <y1> <z1> <x2> <y2> <z2> <block>` | Fill a box (up to 32768 blocks; use `air` to clear) |
+| `/kill [me\|mobs\|hostile\|items\|<mob>]` | Remove entities or yourself |
+| `/heal`, `/feed` | Restore health / hunger |
+| `/spawnpoint` | Set your respawn point |
+| `/difficulty <peaceful\|normal>` | Peaceful removes and stops hostile mobs |
+| `/gamerule <rule> [true\|false]` | `doDaylightCycle`, `doMobSpawning`, `keepInventory` |
+| `/seed`, `/pos` | Show the seed / your position and biome |
+| `/say`, `/me`, `/name <name>` | Chat extras and your chat name |
+| `/save`, `/clearchat` | Save now / clear the chat |
 
 ## Getting started in Survival
 

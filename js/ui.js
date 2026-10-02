@@ -190,6 +190,7 @@ class UI {
   }
 
   toast(text) {
+    if (this.game.chat && this.game.state === 'playing') { this.game.chat.info(text); return; }
     const box = document.getElementById('messages');
     const m = el('div', 'msg', box, text);
     setTimeout(() => { m.style.opacity = 0; }, 3500);
@@ -208,6 +209,7 @@ class UI {
 
   close() {
     const g = this.game;
+    if (this.screen === 'chat') { g.chat.close(); return; }
     if (this.isGuiScreen()) {
       // return crafting items & cursor stack
       for (let i = 0; i < this.craftGrid.length; i++) if (this.craftGrid[i]) this.giveBack(this.craftGrid[i]);
@@ -764,7 +766,7 @@ class UI {
       ['Left Click', 'Break block / attack'], ['Right Click', 'Place block / use / eat'], ['Middle Click', 'Pick block'],
       ['1-9 / Mouse Wheel', 'Select hotbar slot'], ['E', 'Inventory'], ['Q', 'Drop item (Ctrl+Q: whole stack)'],
       ['Double-tap Space', 'Toggle flying (Creative)'], ['F3', 'Debug info'], ['F5', 'Toggle camera perspective'], ['F1', 'Hide HUD'],
-      ['Esc', 'Pause menu'], ['Shift + Click', 'Quick-move items'], ['Right Click (in GUI)', 'Split stack / place one'],
+      ['T / Enter', 'Open chat'], ['/', 'Type a command (try /help)'], ['Esc', 'Pause menu'], ['Shift + Click', 'Quick-move items'], ['Right Click (in GUI)', 'Split stack / place one'],
     ];
     for (const [k, v] of rows) { const r = el('div', 'crow', t); el('span', 'key', r, k); el('span', '', r, v); }
     this.button(m, 'Done', back);

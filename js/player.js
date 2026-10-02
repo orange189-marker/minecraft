@@ -201,13 +201,16 @@ class Player extends Entity {
   die(game, cause) {
     this.dead = true;
     // drop all items
-    for (let i = 0; i < 36; i++) {
+    if (!game.rules.keepInventory) for (let i = 0; i < 36; i++) {
       const s = this.inventory.slots[i];
       if (s) { game.spawnDrop(s.id, s.count, this.x, this.y + 1, this.z, s.dmg ? { dmg: s.dmg } : null, true); this.inventory.slots[i] = null; }
     }
     this.inventory.changed();
     const msgs = { fall: 'You fell from a high place', zombie: 'You were slain by a Zombie', creeper: 'You were blown up by a Creeper', explosion: 'You blew up', lava: 'You tried to swim in lava', fire: 'You burned to death', drown: 'You drowned', starve: 'You starved to death', cactus: 'You were pricked to death', void: 'You fell out of the world' };
-    game.ui.showDeath(msgs[cause] || 'You died');
+    const msg = msgs[cause] || 'You died';
+    const n = game.chat.playerName();
+    game.chat.add(msg.replace(/^You were/, n + ' was').replace(/^You /, n + ' '), 'death');
+    game.ui.showDeath(msg);
   }
 
   respawn(game) {
