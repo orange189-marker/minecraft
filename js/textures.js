@@ -556,23 +556,57 @@ function buildAtlas() {
   defTile('cactus_bottom', (p) => p.fillNoise([200, 180, 120], 0.08));
 
   // --- Break progress overlays ---
+  // A branching fracture grows out from the centre; every pixel gets a "time"
+  // and each of the 10 stages reveals the pixels whose time has come.
   {
-    const rng = mulberry32(1234);
-    const segs = [];
-    for (let s = 0; s < 14; s++) {
-      let x = 7 + Math.floor(rng() * 3) - 1, y = 7 + Math.floor(rng() * 3) - 1;
-      const dir = rng() * Math.PI * 2;
-      for (let k = 0; k < 7; k++) {
-        segs.push([x, y]);
-        x += Math.round(Math.cos(dir + (rng() - 0.5)));
-        y += Math.round(Math.sin(dir + (rng() - 0.5)));
+    const rng = mulberry32(91731);
+    const T = new Float32Array(256).fill(Infinity);
+    const branches = [];
+    const arms = 4;
+    for (let i = 0; i < arms; i++) {
+      branches.push({ x: 7.5 + (rng() - 0.5) * 1.5, y: 7.5 + (rng() - 0.5) * 1.5, a: i / arms * Math.PI * 2 + rng() * 0.9, t: i * 0.8, life: 8 + rng() * 4, gen: 0 });
+    }
+    while (branches.length) {
+      const b = branches.shift();
+      let { x, y, a, t } = b;
+      for (let k = 0; k < b.life; k++) {
+        const ix = Math.round(x), iy = Math.round(y);
+        if (ix < 0 || iy < 0 || ix > 15 || iy > 15) break;
+        const i = iy * 16 + ix;
+        const blob = (dx, dy) => T[(iy + dy) * 16 + ix + dx] !== Infinity;
+        const thick = ix > 0 && iy > 0 && blob(-1, 0) && blob(0, -1) && blob(-1, -1);
+        if (t < T[i] && !thick) T[i] = t;
+        a += (rng() - 0.5) * 0.6;
+        x += Math.cos(a); y += Math.sin(a);
+        t += 1 + b.gen * 0.4;
+        if (b.gen < 2 && k > 2 && rng() < 0.16) {
+          branches.push({ x, y, a: a + (rng() < 0.5 ? 1 : -1) * (0.7 + rng() * 0.8), t, life: b.life * (0.45 + rng() * 0.25), gen: b.gen + 1 });
+        }
       }
     }
+    let tMax = 0;
+    for (const v of T) if (v !== Infinity && v > tMax) tMax = v;
+    // random chip marks that appear in later stages
+    const chips = [];
+    for (let i = 0; i < 16; i++) chips.push([Math.floor(rng() * 16), Math.floor(rng() * 16), 4 + Math.floor(rng() * 6)]);
+
     for (let st = 0; st < 10; st++) {
       defTile('destroy_' + st, (p) => {
         p.clear();
-        const n = Math.floor(segs.length * (st + 1) / 10);
-        for (let i = 0; i < n; i++) p.set(segs[i][0], segs[i][1], [20, 20, 20], 200);
+        const lim = tMax * Math.pow((st + 1) / 10, 1.15);
+        const on = (x, y) => x >= 0 && y >= 0 && x < 16 && y < 16 && T[y * 16 + x] <= lim;
+        for (const [cx, cy, from] of chips) if (st >= from && !on(cx, cy)) p.set(cx, cy, [40, 34, 30], 45 + (st - from) * 10);
+        for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+          if (on(x, y)) continue;
+          // shadow on the lower-right side of a crack, chipped highlight on the upper-left
+          if (on(x - 1, y) || on(x, y - 1)) p.set(x, y, [10, 8, 6], 70);
+          else if (on(x + 1, y) || on(x, y + 1)) p.set(x, y, [255, 250, 240], 45);
+        }
+        for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+          if (!on(x, y)) continue;
+          const age = (lim - T[y * 16 + x]) / (tMax || 1);   // older cracks are darker and wider-looking
+          p.set(x, y, [16, 13, 11], Math.round(clamp(150 + age * 200, 150, 215)));
+        }
       });
     }
   }

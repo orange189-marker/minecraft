@@ -828,7 +828,12 @@ class Game {
         Mat4.translate(_m, _m, b.x - 0.003, b.y - 0.003, b.z - 0.003);
         Mat4.scale(_m, _m, 1.006, 1.006, 1.006);
         const tl = tileIndex('destroy_' + st);
-        this.dyn.box(_m, [tl, tl, tl, tl, tl, tl], 15, 15, 0);
+        // light the cracks like the block itself (brightest open neighbour)
+        let sk = 0, bl = 0;
+        for (const [dx, dy, dz] of [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]]) {
+          sk = Math.max(sk, w.getSky(b.x + dx, b.y + dy, b.z + dz)); bl = Math.max(bl, w.getBlockLight(b.x + dx, b.y + dy, b.z + dz));
+        }
+        this.dynTrans.box(_m, [tl, tl, tl, tl, tl, tl], sk, bl, 0);
       }
       if (!this.thirdPerson && !p.dead) this.buildHand(dt);
     }
