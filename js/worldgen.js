@@ -261,7 +261,13 @@ class TerrainGenerator {
           if (col.biome === BIOME.TAIGA) blocks[at(lx, y, lz)] = B.BERRY_BUSH;
           else if (col.biome === BIOME.FOREST || col.biome === BIOME.BIRCH_FOREST) blocks[at(lx, y, lz)] = r2 < 0.25 ? (r2 < 0.12 ? B.BROWN_MUSHROOM : B.RED_MUSHROOM) : B.BUSH;
           else if (col.biome === BIOME.PLAINS && r2 < 0.08) blocks[at(lx, y, lz)] = B.PUMPKIN;
+          else if (col.biome === BIOME.PLAINS && r2 < 0.13) blocks[at(lx, y, lz)] = B.MELON;
           else blocks[at(lx, y, lz)] = B.BUSH;
+        } else if (r < flowerRate + grassRate + 0.016 && (col.biome === BIOME.PLAINS || col.biome === BIOME.FOREST || col.biome === BIOME.BIRCH_FOREST)) {
+          // small patches of wild, fully grown crops
+          const crops = [B.WHEAT, B.CARROTS, B.POTATOES, B.BEETROOTS];
+          const c = crops[Math.floor(hash2(Math.floor(wx / 8), Math.floor(wz / 8), seed + 61) * crops.length)];
+          blocks[at(lx, y, lz)] = c; chunk.meta[at(lx, y, lz)] = 7;
         }
       } else if (ground === B.SAND) {
         if (nearWater(lx, y - 1, lz) && r < 0.1 && col.biome !== BIOME.OCEAN) {

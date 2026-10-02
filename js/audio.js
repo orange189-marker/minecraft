@@ -126,6 +126,17 @@ class AudioEngine {
         this.noiseBurst(o, t, 0.6, 'lowpass', 400, 1, 0.15, 0.1);
         break;
       }
+      case 'cow': case 'cow_hurt': {
+        const base = name === 'cow' ? 150 : 200;
+        const osc = this.tone(o, t, name === 'cow' ? 1.0 : 0.35, 'sawtooth', base, base * 0.75, 0.13, 0.12);
+        const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+        osc.disconnect(); const g2 = this.ctx.createGain(); g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(0.18, t + 0.12); g2.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+        osc.connect(lp); lp.connect(g2); g2.connect(o);
+        break;
+      }
+      case 'chicken': case 'chicken_hurt':
+        for (let i = 0; i < (name === 'chicken' ? 3 : 1); i++) this.tone(o, t + i * 0.12, 0.08, 'square', 900 + Math.random() * 300, 600, 0.06);
+        break;
       case 'creeper_hurt': this.noiseBurst(o, t, 0.25, 'bandpass', 900, 1, 0.5); break;
       case 'fuse': this.noiseBurst(o, t, 1.5, 'highpass', 3500, 0.5, 0.45, 0.05); break;
       case 'explode':

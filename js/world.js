@@ -302,7 +302,12 @@ class World {
       }
       return;
     }
-    if (def.render === RT_CROSS || id === B.LILY_PAD) {
+    if (id === B.FARMLAND) {
+      const ab = this.getBlock(x, y + 1, z);
+      if (SOLID[ab] && OPAQUE[ab]) this.setBlock(x, y, z, B.DIRT);
+      return;
+    }
+    if (def.render === RT_CROSS || def.render === RT_CROP || id === B.LILY_PAD) {
       if (!this.plantSupported(id, x, y, z)) {
         // the second half of a tall plant vanishes without dropping anything
         if (DOUBLE_UPPER[id] && this.getBlock(x, y - 1, z) !== DOUBLE_UPPER[id]) this.setBlock(x, y, z, B.AIR);
@@ -335,12 +340,16 @@ class World {
     for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
       const c = this.getChunk(pcx + dx, pcz + dz);
       if (!c || !c.lit) continue;
-      for (let k = 0; k < 6; k++) {
+      for (let k = 0; k < 16; k++) {
         const lx = (Math.random() * 16) | 0, lz = (Math.random() * 16) | 0, y = 1 + ((Math.random() * Math.min(WORLD_H - 2, c.maxY + 1)) | 0);
         const id = c.blocks[(y * 16 + lz) * 16 + lx];
         const x = c.cx * 16 + lx, z = c.cz * 16 + lz;
         if (id === B.SAPLING_OAK || id === B.SAPLING_BIRCH || id === B.SAPLING_SPRUCE) {
           if (Math.random() < 0.12 && this.getSky(x, y + 1, z) >= 9) this.growTree(x, y, z, id);
+        } else if (id === B.FARMLAND) {
+          this.tickFarmland(x, y, z);
+        } else if (BLOCKS[id] && BLOCKS[id].crop) {
+          this.tickCrop(x, y, z, id);
         } else if (id === B.SUGAR_CANE) {
           if (Math.random() < 0.1 && this.getBlock(x, y + 1, z) === B.AIR && !(this.getBlock(x, y - 1, z) === B.SUGAR_CANE && this.getBlock(x, y - 2, z) === B.SUGAR_CANE)) this.setBlock(x, y + 1, z, B.SUGAR_CANE, 0, { noUpdate: true });
         } else if (id === B.BERRY_BUSH_EMPTY) {
@@ -354,6 +363,70 @@ class World {
         }
       }
     }
+  }
+
+  isHydrated(x, y, z) {
+    for (let dy = 0; dy <= 1; dy++) for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++)
+      if (this.getBlock(x + dx, y + dy, z + dz) === B.WATER) return true;
+    return false;
+  }
+
+  tickFarmland(x, y, z) {
+    const m = this.getMeta(x, y, z);
+    if (this.isHydrated(x, y, z)) { if (m !== 7) this.setBlock(x, y, z, B.FARMLAND, 7, { noUpdate: true }); return; }
+    if (m > 0) { this.setBlock(x, y, z, B.FARMLAND, m - 1, { noUpdate: true }); return; }
+    const above = this.getBlock(x, y + 1, z);
+    if (!(BLOCKS[above] && BLOCKS[above].crop) && Math.random() < 0.15) this.setBlock(x, y, z, B.DIRT);
+  }
+
+  tickCrop(x, y, z, id) {
+    const below = this.getBlock(x, y - 1, z);
+    if (below !== B.FARMLAND) return; // wild crops don't grow
+    if (Math.max(this.getSky(x, y, z), this.getBlockLight(x, y, z)) < 9) return;
+    const wet = this.getMeta(x, y - 1, z) > 0;
+    const m = this.getMeta(x, y, z);
+    if (m < 7) { if (Math.random() < (wet ? 0.6 : 0.3)) this.setBlock(x, y, z, id, m + 1, { noUpdate: true }); return; }
+    const fruit = BLOCKS[id].fruit;
+    if (fruit && Math.random() < 0.4) this.growFruit(x, y, z, fruit);
+  }
+
+  growFruit(x, y, z, fruit) {
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (this.getBlock(x + dx, y, z + dz) === fruit) return false;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const [dx, dz] = dirs[Math.floor(Math.random() * 4)];
+    const b = this.getBlock(x + dx, y, z + dz), g = this.getBlock(x + dx, y - 1, z + dz);
+    if ((b === B.AIR || BLOCKS[b].replaceable) && (g === B.DIRT || g === B.GRASS || g === B.FARMLAND)) { this.setBlock(x + dx, y, z + dz, fruit); return true; }
+    return false;
+  }
+
+  // Bone meal: returns true if it did something
+  applyBoneMeal(x, y, z) {
+    const id = this.getBlock(x, y, z), def = BLOCKS[id];
+    if (def && def.crop) {
+      const m = this.getMeta(x, y, z);
+      if (m >= 7) return def.fruit ? this.growFruit(x, y, z, def.fruit) : false;
+      this.setBlock(x, y, z, id, Math.min(7, m + 2 + Math.floor(Math.random() * 3)));
+      return true;
+    }
+    if (id === B.SAPLING_OAK || id === B.SAPLING_BIRCH || id === B.SAPLING_SPRUCE) { if (Math.random() < 0.45) this.growTree(x, y, z, id); return true; }
+    if (id === B.BERRY_BUSH_EMPTY) { this.setBlock(x, y, z, B.BERRY_BUSH); return true; }
+    if (id === B.SUGAR_CANE) {
+      let top = y; while (this.getBlock(x, top + 1, z) === B.SUGAR_CANE) top++;
+      if (this.getBlock(x, top + 1, z) === B.AIR && top - y < 3) { this.setBlock(x, top + 1, z, B.SUGAR_CANE); return true; }
+      return false;
+    }
+    if (id === B.GRASS) {
+      // sprout grass and flowers around
+      const flowers = [B.DANDELION, B.ROSE, B.AZURE_BLUET, B.OXEYE_DAISY, B.CORNFLOWER];
+      for (let k = 0; k < 24; k++) {
+        const gx = x + Math.floor(Math.random() * 7) - 3, gz = z + Math.floor(Math.random() * 7) - 3;
+        if (this.getBlock(gx, y, gz) !== B.GRASS || this.getBlock(gx, y + 1, gz) !== B.AIR) continue;
+        const r = Math.random();
+        this.setBlock(gx, y + 1, gz, r < 0.12 ? flowers[Math.floor(Math.random() * flowers.length)] : B.TALLGRASS, 0, { noUpdate: true });
+      }
+      return true;
+    }
+    return false;
   }
 
   growTree(x, y, z, sapling) {
@@ -378,6 +451,8 @@ class World {
     if (DOUBLE_LOWER[id] && this.getBlock(x, y + 1, z) !== DOUBLE_LOWER[id]) return false;
     switch (id) {
       case B.DEAD_BUSH: return below === B.SAND || below === B.DIRT || below === B.GRASS;
+      case B.WHEAT: case B.CARROTS: case B.POTATOES: case B.BEETROOTS: case B.PUMPKIN_STEM: case B.MELON_STEM:
+        return below === B.FARMLAND || below === B.GRASS || below === B.DIRT;  // wild crops grow on grass
       case B.LILY_PAD: return below === B.WATER;
       case B.BROWN_MUSHROOM: case B.RED_MUSHROOM: return !!(OPAQUE[below] && SOLID[below]);
       case B.SUGAR_CANE: {
@@ -391,9 +466,9 @@ class World {
   }
 
   breakBlockNaturally(x, y, z) {
-    const id = this.getBlock(x, y, z);
+    const id = this.getBlock(x, y, z), meta = this.getMeta(x, y, z);
     this.setBlock(x, y, z, B.AIR);
-    for (const l of this.listeners) l.onNaturalBreak && l.onNaturalBreak(x, y, z, id);
+    for (const l of this.listeners) l.onNaturalBreak && l.onNaturalBreak(x, y, z, id, meta);
   }
 
   canFlowInto(id) { return id === B.AIR || (BLOCKS[id] && BLOCKS[id].replaceable && id !== B.WATER && id !== B.LAVA); }

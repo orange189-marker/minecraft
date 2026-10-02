@@ -117,6 +117,10 @@ class Player extends Entity {
     if (!this.onGround && this.vy < 0 && !this.inWater && !this.flying) this.fallDist += -(this.y - oy);
     if (this.inWater || this.flying) this.fallDist = 0;
     if (this.onGround) {
+      if (this.fallDist > 0.9 && !creative) {
+        const fx = Math.floor(this.x), fy = Math.floor(this.y - 0.05), fz = Math.floor(this.z);
+        if (world.getBlock(fx, fy, fz) === B.FARMLAND && Math.random() < 0.6) world.setBlock(fx, fy, fz, B.DIRT);
+      }
       if (this.fallDist > 3.4 && !creative) {
         const dmg = Math.floor(this.fallDist - 3);
         this.damage(dmg, game, 'fall');

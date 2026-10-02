@@ -119,6 +119,9 @@ function buildChunkMesh(world, chunk) {
     else if (rt === RT_CACTUS) cactusBlock(op, b, i, x, y, z);
     else if (rt === RT_BED) bedBlock(op, b, i, x, y, z);
     else if (rt === RT_FLAT) flatBlock(op, b, i, x, y, z);
+    else if (rt === RT_CROP) cropBlock(op, b, i, x, y, z);
+    else if (rt === RT_FARMLAND) farmlandBlock(op, b, i, x, y, z);
+    else if (rt === RT_CAKE) cakeBlock(op, b, i, x, y, z);
   }
   return { opaque: op.slice(), trans: tr.slice(), nOpaque: op.n, nTrans: tr.n };
 }
@@ -136,7 +139,7 @@ function cubeBlock(op, tr, b, i, x, y, z) {
     if (cullSame && nb === b) continue;
     if (TRANS[b] && TRANS[nb] && nb !== B.AIR) continue;
     out.ensure(4);
-    const tile = f === facing ? FRONT_TEX[b] : FACE_TEX[b * 6 + f];
+    const tile = f === facing ? FRONT_TEX[b] : (f === 2 && HAS_META_TEX[b] === 2) ? META_TEX[b * 9 + Math.min(8, PM[i])] : FACE_TEX[b * 6 + f];
     const tu = (tile % ATLAS_COLS) * 16, tv = Math.floor(tile / ATLAS_COLS) * 16;
     const offs = AO_OFF[f];
     const nl = PL[ni];
@@ -272,6 +275,67 @@ function flatBlock(op, b, i, x, y, z) {
   op.ensure(8);
   for (let c = 0; c < 4; c++) { const q = pts[c], uv = CORNER_UV[(c + rot) & 3]; op.vert(x + q[0], y + h, z + q[1], tu + uv[0], tv + uv[1], s, bl, 1, TINT_FLAG, tb); }
   for (let c = 3; c >= 0; c--) { const q = pts[c], uv = CORNER_UV[(c + rot) & 3]; op.vert(x + q[0], y + h, z + q[1], tu + uv[0], tv + uv[1], s, bl, 0.6, TINT_FLAG, tb); }
+}
+
+// Crops: four planes in a # shape, sunk 1/16 into the farmland
+function cropBlock(op, b, i, x, y, z) {
+  const tile = META_TEX[b * 9 + Math.min(7, PM[i])];
+  const tu = (tile % ATLAS_COLS) * 16, tv = Math.floor(tile / ATLAS_COLS) * 16;
+  const l = PL[i], s = l >> 4, bl = l & 15;
+  const below = PB[i - PAREA];
+  const y0 = below === B.FARMLAND ? -1 / 16 : 0;
+  op.ensure(32);
+  for (const k of [0.25, 0.75]) {
+    const planes = [
+      [[k, 0, 0], [k, 0, 1], [k, 1, 1], [k, 1, 0]],
+      [[0, 0, k], [1, 0, k], [1, 1, k], [0, 1, k]],
+    ];
+    for (const q of planes) {
+      for (let c = 0; c < 4; c++) op.vert(x + q[c][0], y + q[c][1] + y0, z + q[c][2], tu + CORNER_UV[c][0], tv + CORNER_UV[c][1], s, bl, 0.9, q[c][1] === 1 ? 1 : 0);
+      for (let c = 3; c >= 0; c--) op.vert(x + q[c][0], y + q[c][1] + y0, z + q[c][2], tu + CORNER_UV[c][0], tv + CORNER_UV[c][1], s, bl, 0.8, q[c][1] === 1 ? 1 : 0);
+    }
+  }
+}
+
+// Farmland: a full block whose top sits at 15/16
+function farmlandBlock(op, b, i, x, y, z) {
+  const h = 15 / 16;
+  op.ensure(24);
+  for (let f = 0; f < 6; f++) {
+    const ni = i + NOFF[f], nb = PB[ni];
+    if (f !== 2 && OPAQUE[nb]) continue;
+    const tile = f === 2 ? META_TEX[b * 9 + Math.min(8, PM[i])] : FACE_TEX[b * 6 + f];
+    const tu = (tile % ATLAS_COLS) * 16, tv = Math.floor(tile / ATLAS_COLS) * 16;
+    const l = f === 2 ? PL[i + NOFF[2]] : PL[ni];
+    const s = l >> 4, bl = l & 15;
+    for (let c = 0; c < 4; c++) {
+      const cc = FACE_CORNERS[f][c];
+      let v = CORNER_UV[c][1];
+      if (f !== 2 && f !== 3 && cc[1]) v = 1;
+      op.vert(x + cc[0], y + (cc[1] ? h : 0), z + cc[2], tu + CORNER_UV[c][0], tv + v, s, bl, FACE_SHADE[f], 0);
+    }
+  }
+}
+
+// Cake: 14/16 wide, 8/16 tall, bites taken from the -x side
+function cakeBlock(op, b, i, x, y, z) {
+  const bites = Math.min(6, PM[i]);
+  const x0 = (1 + bites * 2) / 16, x1 = 15 / 16, z0 = 1 / 16, z1 = 15 / 16, h = 0.5;
+  const l = PL[i], s = l >> 4, bl = l & 15;
+  op.ensure(24);
+  for (let f = 0; f < 6; f++) {
+    if (f === 3 && OPAQUE[PB[i - PAREA]]) continue;
+    const tile = FACE_TEX[b * 6 + f];
+    const tu = (tile % ATLAS_COLS) * 16, tv = Math.floor(tile / ATLAS_COLS) * 16;
+    for (let c = 0; c < 4; c++) {
+      const cc = FACE_CORNERS[f][c];
+      const px = cc[0] ? x1 : x0, pz = cc[2] ? z1 : z0, py = cc[1] ? h : 0;
+      let u = CORNER_UV[c][0], v = CORNER_UV[c][1];
+      if (f === 2 || f === 3) { u = px * 16; v = pz * 16; }
+      else { if (f === 4 || f === 5) u = cc[0] ? x1 * 16 : x0 * 16; v = cc[1] ? 8 : 16; }
+      op.vert(x + px, y + py, z + pz, tu + u, tv + v, s, bl, FACE_SHADE[f], 0);
+    }
+  }
 }
 
 function liquidHeight(b, i) {

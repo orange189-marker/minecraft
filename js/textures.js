@@ -246,6 +246,10 @@ function toolTile(type, mat) {
       paintHandle(p, 9);
       const blade = [[10, 3], [11, 2], [12, 2], [13, 3], [13, 4], [12, 5], [11, 5], [10, 4], [11, 3], [12, 3], [12, 4], [11, 4], [14, 3], [12, 1], [14, 2], [13, 1]];
       blade.forEach(([x, y], i) => p.set(x, y, i < 8 ? (i % 2 ? d : m) : l));
+    } else if (type === 'hoe') {
+      paintHandle(p, 10);
+      for (let x = 7; x <= 12; x++) { p.set(x, 2, x === 7 ? d : l); p.set(x, 3, x < 10 ? out : m); }
+      p.set(6, 3, out); p.set(12, 4, C.handle); p.set(11, 4, m);
     } else if (type === 'sword') {
       for (let i = 0; i < 9; i++) {
         p.set(5 + i, 10 - i, i % 3 === 0 ? l : m);
@@ -662,7 +666,7 @@ function buildAtlas() {
   defTile('wheat_seeds', (p, r) => { p.clear(); for (let i = 0; i < 8; i++) { const x = 3 + Math.floor(r() * 10), y = 4 + Math.floor(r() * 9); p.set(x, y, [60, 160, 50]); p.set(x, y + 1, [40, 110, 30]); } });
 
   const mats = { wooden: C.wood, stone: C.stoneTool, iron: C.iron, golden: C.gold, diamond: C.diamond };
-  for (const m in mats) for (const t of ['pickaxe', 'axe', 'shovel', 'sword']) defTile(m + '_' + t, toolTile(t, mats[m]));
+  for (const m in mats) for (const t of ['pickaxe', 'axe', 'shovel', 'sword', 'hoe']) defTile(m + '_' + t, toolTile(t, mats[m]));
 
   // --- Mob skins ---
   defTile('pig_skin', (p) => p.fillNoise([240, 160, 160], 0.08));
@@ -872,6 +876,151 @@ function buildAtlas() {
   defTile('sweet_berries', (p) => { p.clear(); p.pattern(['', '', '', '.......gg', '......g..g', '.....g....g', '....RR...RR', '...RrRR.RrRR', '...RRRR.RRRR', '....RR.RR.RR', '......RrRR', '......RRRR', '.......RR'], { g: [50, 110, 40, 255], R: [190, 20, 40, 255], r: [250, 110, 120, 255] }); });
   defTile('pumpkin_pie', (p) => { p.clear(); p.pattern(['', '', '', '', '', '....CCCCCCCC', '..CCPPPPPPPPCC', '.CPPPpPPPPpPPPC', '.CPPPPPPPPPPPPC', '.CCPPPPPPPPPPCC', '.ccCCCCCCCCCCcc', '..cccccccccccc'], { C: [214, 160, 90, 255], c: [170, 120, 60, 255], P: [214, 120, 40, 255], p: [240, 170, 90, 255] }); });
 
+  // ---- Farming ----
+  const farmland = (wet) => (p, r) => {
+    paintDirt(p);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const i = (y * 16 + x) * 4;
+      let f = y % 4 === 0 ? 0.62 : y % 4 === 1 ? 1.12 : 1;
+      if (wet) f *= 0.62;
+      p.d[i] *= f; p.d[i + 1] *= f; p.d[i + 2] *= f * (wet ? 1.08 : 1);
+    }
+  };
+  defTile('farmland_dry', farmland(false));
+  defTile('farmland_wet', farmland(true));
+  const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  for (let st = 0; st < 8; st++) defTile('wheat_stage_' + st, (p, r) => {
+    p.clear();
+    const t = st / 7, ripe = clamp((st - 4) / 3, 0, 1);
+    for (const x0 of [1, 4, 7, 10, 13]) {
+      const h = Math.round(3 + t * 11 + (r() - 0.5) * 2);
+      let x = x0 + (r() < 0.5 ? 0 : 1);
+      for (let k = 0; k < h; k++) {
+        const y = 15 - k;
+        const c = mixc([70, 150, 44], [196, 168, 66], ripe * (0.5 + k / h * 0.5));
+        p.set(x, y, p.vary(c, 0.08));
+        if (st === 7 && k > h - 5) { p.set(x + 1, y, p.vary([214, 186, 84], 0.08)); if (k % 2) p.set(x - 1, y, [170, 136, 52]); }
+        if (r() < 0.12) x = clamp(x + (r() < 0.5 ? -1 : 1), 0, 15);
+      }
+    }
+  });
+  const leafyCrop = (name, leaf, extra) => { for (let st = 0; st < 4; st++) defTile(name + '_' + st, (p, r) => {
+    p.clear();
+    for (const x0 of [2, 7, 12]) {
+      const h = 2 + st * 3;
+      for (let k = 0; k < h; k++) {
+        const y = 15 - k, spread = Math.round(Math.sin(k / h * Math.PI) * (1 + st * 0.6));
+        for (let dx = -spread; dx <= spread; dx++) if (r() < 0.75) p.set(x0 + dx, y, p.vary(leaf, 0.2));
+      }
+      if (extra) extra(p, r, x0, st);
+    }
+  }); };
+  leafyCrop('carrots_stage', [70, 150, 50], (p, r, x, st) => { if (st === 3) { p.set(x, 15, [240, 130, 30]); p.set(x + 1, 15, [220, 110, 20]); p.set(x, 14, [250, 150, 40]); } });
+  leafyCrop('potatoes_stage', [56, 126, 44], (p, r, x, st) => { if (st === 3) { p.set(x, 15 - 10, [240, 240, 250]); p.set(x + 1, 15 - 9, [200, 170, 230]); p.set(x - 1, 15, [190, 150, 90]); p.set(x + 1, 15, [170, 130, 70]); } });
+  leafyCrop('beetroots_stage', [60, 136, 50], (p, r, x, st) => {
+    for (let k = 0; k < 2 + st * 2; k++) p.set(x, 15 - k, [170, 30, 50]);
+    if (st === 3) { p.rect(x - 1, 14, 3, 2, [150, 20, 40]); p.set(x, 13, [190, 40, 60]); }
+  });
+  for (let st = 0; st < 8; st++) defTile('stem_stage_' + st, (p, r) => {
+    p.clear();
+    const h = 3 + Math.round(st * 1.5), c = mixc([80, 160, 50], [170, 150, 60], st / 7);
+    let x = 7;
+    for (let k = 0; k < h; k++) { p.set(x, 15 - k, c); if (k % 3 === 2) { p.set(x - 1, 15 - k, c); p.set(x + 1, 14 - k, c); } if (k === Math.floor(h / 2)) x++; }
+  });
+  defTile('melon_side', (p) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, p.vary(x % 4 === 1 ? [70, 120, 30] : [120, 170, 50], 0.07)); });
+  defTile('melon_top', (p) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)); p.set(x, y, p.vary(Math.floor(d) % 3 === 0 ? [90, 140, 36] : [120, 170, 50], 0.06)); }
+    p.rect(7, 7, 2, 2, [90, 70, 30]);
+  });
+  defTile('hay_side', (p, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let c = (x + Math.floor(r() * 2)) % 3 === 0 ? [176, 140, 34] : [214, 182, 56];
+      if (y === 3 || y === 12) c = [130, 60, 30]; else if (y === 2 || y === 13) c = [160, 80, 40];
+      p.set(x, y, p.vary(c, 0.08));
+    }
+  });
+  defTile('hay_top', (p, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, p.vary(r() < 0.3 ? [170, 134, 30] : [212, 178, 54], 0.1));
+    p.border([150, 110, 24]);
+  });
+  defTile('composter_side', (p, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const frame = x < 2 || x > 13 || y < 2 || y > 13, seam = x % 4 === 1;
+      p.set(x, y, p.vary(frame ? [120, 84, 44] : seam ? [110, 78, 40] : [150, 112, 64], 0.06));
+    }
+  });
+  const composter = (level, ready) => (p, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const frame = x < 2 || x > 13 || y < 2 || y > 13;
+      if (frame) { p.set(x, y, p.vary([128, 92, 50], 0.06)); continue; }
+      if (level === 0) { p.set(x, y, p.vary([70, 50, 28], 0.1)); continue; }
+      const f = 0.65 + level * 0.09;
+      const c = ready ? (r() < 0.35 ? [236, 236, 228] : [96, 70, 40]) : (r() < 0.4 ? [70, 110, 40] : [100, 74, 40]);
+      p.set(x, y, p.vary([c[0] * f, c[1] * f, c[2] * f], 0.15));
+    }
+  };
+  for (let l = 0; l < 5; l++) defTile('composter_' + l, composter(l, false));
+  defTile('composter_ready', composter(4, true));
+  defTile('cake_top', (p) => {
+    p.fillNoise([246, 244, 238], 0.03);
+    for (const [x, y] of [[4, 4], [11, 4], [4, 11], [11, 11], [7, 7]]) { p.rect(x, y, 2, 2, [220, 30, 40]); p.set(x, y, [255, 110, 110]); }
+  });
+  defTile('cake_side', (p) => {
+    p.clear();
+    for (let y = 8; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let c = y < 10 || (y === 10 && x % 3 !== 1) ? [246, 244, 238] : y === 13 ? [200, 40, 50] : [220, 172, 110];
+      p.set(x, y, p.vary(c, 0.04));
+    }
+  });
+  defTile('cake_bottom', (p) => p.fillNoise([210, 160, 100], 0.06));
+
+  // ---- Farm items ----
+  const I_ = (rows, pal) => (p) => { p.clear(); p.pattern(rows, pal); };
+  defTile('wheat', I_(['', '..........yY', '.........yYy', '........yYy', '.......yYy', '.....yyYy', '....YyYy', '...yYy.g', '..yYy.g', '..Yy.g', '...gg', '..gg', '.gg', 'gg'], { y: [214, 180, 70, 255], Y: [176, 140, 46, 255], g: [150, 130, 50, 255] }));
+  defTile('carrot', I_(['', '..........gg', '.........gGg', '........gGgg', '.......OOg', '......OoO', '.....OoOO', '....OOoO', '...OoOO', '...OOO', '..OO', '..O'], { g: [60, 140, 40, 255], G: [100, 180, 60, 255], O: [240, 128, 24, 255], o: [255, 176, 70, 255] }));
+  defTile('potato', I_(['', '', '', '', '.....pppp', '...ppPPPpp', '..pPPdPPPpp', '..pPPPPPdPp', '..ppPdPPPPp', '...ppPPPpp', '.....pppp'], { p: [160, 120, 60, 255], P: [210, 170, 100, 255], d: [130, 90, 40, 255] }));
+  defTile('baked_potato', I_(['', '', '', '', '.....pppp', '...ppYYYpp', '..pYYwYYYpp', '..pYYYYYwYp', '..ppYwYYYYp', '...ppYYYpp', '.....pppp'], { p: [150, 100, 40, 255], Y: [230, 196, 110, 255], w: [255, 240, 200, 255] }));
+  defTile('beetroot', I_(['', '.......gg', '......gGg', '.....g.g', '......RR', '....RRrRR', '...RRrRRRR', '...RRRRRrR', '...RRRRRRR', '....RRRRR', '.....RRR', '......R'], { g: [60, 140, 40, 255], G: [100, 180, 60, 255], R: [160, 24, 50, 255], r: [210, 70, 90, 255] }));
+  defTile('beetroot_seeds', (p, r) => { p.clear(); for (let i = 0; i < 7; i++) { const x = 3 + Math.floor(r() * 10), y = 4 + Math.floor(r() * 9); p.set(x, y, [150, 110, 70]); p.set(x + 1, y, [110, 80, 50]); } });
+  defTile('pumpkin_seeds', (p, r) => { p.clear(); for (let i = 0; i < 6; i++) { const x = 3 + Math.floor(r() * 10), y = 4 + Math.floor(r() * 9); p.set(x, y, [240, 230, 190]); p.set(x, y + 1, [210, 200, 160]); } });
+  defTile('melon_seeds', (p, r) => { p.clear(); for (let i = 0; i < 6; i++) { const x = 3 + Math.floor(r() * 10), y = 4 + Math.floor(r() * 9); p.set(x, y, [40, 30, 20]); p.set(x, y + 1, [70, 50, 30]); } });
+  defTile('melon_slice', I_(['', '', '', '', '..G', '..GRR', '..GRkR', '..GRRRR', '..GRRkRR', '..GRRRRRR', '..GGRRRkRR', '...GGGGGGGG'], { G: [80, 150, 40, 255], R: [230, 60, 60, 255], k: [30, 20, 20, 255] }));
+  defTile('sugar', (p, r) => { p.clear(); for (let i = 0; i < 70; i++) { const a = r() * 6.28, d = r() * 5.5; p.set(Math.round(8 + Math.cos(a) * d), Math.round(10 + Math.sin(a) * d * 0.6), p.vary([240, 240, 245], 0.08)); } });
+  defTile('egg', I_(['', '', '', '......EEE', '.....EEEEE', '....EwEEEEE', '....EwEEEEE', '...EEEEEEEEE', '...EEEEEEEEe', '...EEEEEEEEe', '....EEEEEEe', '.....eeeee'], { E: [236, 220, 180, 255], w: [255, 250, 236, 255], e: [200, 180, 140, 255] }));
+  defTile('feather', I_(['', '...........WW', '..........WWw', '.........WWw', '........WWw', '.......WWw', '......WWw', '.....WWw', '....WWw', '...WWw', '..gg', '.g'], { W: [244, 244, 244, 255], w: [190, 190, 200, 255], g: [120, 120, 120, 255] }));
+  defTile('leather', I_(['', '', '...LLLLLLLL', '..LLlLLLLLLL', '..LLLLLLlLL', '...LLLLLLLL', '..LLLLLlLLL', '..LlLLLLLLL', '...LLLLLLLL', '..LLLLLLLL', '...LL..LL'], { L: [160, 90, 50, 255], l: [190, 120, 70, 255] }));
+  defTile('beef', meat([200, 50, 50, 255], [230, 90, 80, 255], [250, 230, 220, 255]));
+  defTile('steak', meat([110, 60, 30, 255], [150, 90, 50, 255], [200, 170, 130, 255]));
+  defTile('chicken', I_(['', '', '...........BB', '..........BWB', '.....PPPPBB', '...PPPPPPP', '..PPpPPPPPP', '..PPPPPPPpP', '..PPPPPPPPP', '...PPPPPPP', '....PPPPP'], { B: [230, 220, 200, 255], W: [255, 250, 240, 255], P: [240, 190, 170, 255], p: [255, 220, 200, 255] }));
+  defTile('cooked_chicken', I_(['', '', '...........BB', '..........BWB', '.....PPPPBB', '...PPPPPPP', '..PPpPPPPPP', '..PPPPPPPpP', '..PPPPPPPPP', '...PPPPPPP', '....PPPPP'], { B: [230, 220, 200, 255], W: [255, 250, 240, 255], P: [190, 120, 60, 255], p: [230, 170, 100, 255] }));
+  defTile('milk_bucket', I_(['', '', '', '...SSSSSSSSSS', '..SWWWWWWWWWWS', '..SLLLLLLLLLLS', '...SLLLLLLLLS', '...SLLLLLLLLS', '....SLLLLLLS', '....SLLLLLLS', '.....SSSSSS'], { S: [100, 100, 100, 255], W: [250, 250, 250, 255], L: [200, 200, 200, 255] }));
+  defTile('bone', I_(['', '...........WW', '..........WWWW', '..........WWW', '.........WW', '........WW', '.......WW', '......WW', '.....WW', '...WWW', '..WWWW', '..WW'], { W: [236, 232, 220, 255] }));
+  defTile('bone_meal', (p, r) => { p.clear(); for (let i = 0; i < 70; i++) { const a = r() * 6.28, d = r() * 5.5; p.set(Math.round(8 + Math.cos(a) * d), Math.round(9 + Math.sin(a) * d * 0.7), p.vary([236, 236, 226], 0.06)); } });
+  defTile('cake_item', I_(['', '', '', '', '.....RWWWR', '...WWWWWWWWW', '..WWRWWWWRWWW', '..WWWWWWWWWWW', '..WsWsWWsWWsW', '..ssssssssssss', '..sjjjjjjjjjjs', '..ssssssssssss', '...ssssssssss'], { W: [246, 244, 238, 255], R: [220, 30, 40, 255], s: [220, 172, 110, 255], j: [200, 40, 50, 255] }));
+  defTile('shears', I_(['', '', '..........MM', '.........MmM', '........MmM', '.......MmM', '...HH.MmM', '..H..HMM', '..H..HH', '...HHH.H', '......H..H', '......H..H', '.......HH'], { M: [220, 220, 220, 255], m: [170, 170, 170, 255], H: [80, 80, 90, 255] }));
+  defTile('cookie', I_(['', '', '', '', '.....CCCC', '...CCcCCCC', '..CCCCCCcCC', '..CcCCCCCCC', '..CCCCcCCCC', '...CCCCCCc', '.....CCCC'], { C: [200, 140, 70, 255], c: [80, 50, 30, 255] }));
+  defTile('book', I_(['', '', '...RRRRRRRRR', '..RRRRRRRRRRR', '..RRrRRRRRRRR', '..RRRRRRRRRRR', '..RRRRRRRRRRR', '..RRRRRRRRRRR', '..RRRRRRRRRRR', '..RRRRRRRRRRR', '..WWWWWWWWWWW', '...WWWWWWWWWW'], { R: [140, 60, 40, 255], r: [230, 200, 80, 255], W: [240, 236, 220, 255] }));
+
+  // ---- Farm animals ----
+  defTile('cow_skin', (p, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, p.vary([88, 58, 38], 0.1));
+    for (let i = 0; i < 4; i++) { const cx = Math.floor(r() * 16), cy = Math.floor(r() * 16), rad = 2 + r() * 3; for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (Math.hypot(x - cx, y - cy) < rad) p.set(x, y, p.vary([236, 232, 226], 0.04)); }
+  });
+  defTile('cow_face', (p) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, p.vary([88, 58, 38], 0.08));
+    p.rect(4, 0, 8, 6, [236, 232, 226]);
+    p.rect(1, 5, 3, 2, [20, 20, 20]); p.rect(12, 5, 3, 2, [20, 20, 20]); p.set(2, 5, [240, 240, 240]); p.set(13, 5, [240, 240, 240]);
+    p.rect(3, 10, 10, 6, [190, 150, 130]); p.rect(5, 12, 2, 2, [60, 40, 36]); p.rect(9, 12, 2, 2, [60, 40, 36]);
+  });
+  defTile('horn', (p) => p.fillNoise([220, 214, 190], 0.05));
+  defTile('chicken_skin', (p) => paintWool(p, [244, 244, 240]));
+  defTile('chicken_face', (p) => { paintWool(p, [244, 244, 240]); p.rect(2, 4, 2, 2, [20, 20, 20]); p.rect(12, 4, 2, 2, [20, 20, 20]); });
+  defTile('beak', (p) => p.fillNoise([240, 160, 30], 0.05));
+  defTile('wattle', (p) => p.fillNoise([210, 30, 30], 0.05));
+  defTile('chicken_leg', (p) => p.fillNoise([230, 170, 50], 0.05));
+  defTile('heart', (p) => { p.clear(); p.pattern(['', '', '', '', '', '...RR.RR', '..RWRRRRR', '..RRRRRRR', '...RRRRR', '....RRR', '.....R'], { R: [230, 30, 40, 255], W: [255, 200, 200, 255] }); });
+
+  defTile('sparkle', (p) => { p.clear(); p.pattern(['', '', '', '', '', '.......G', '.......G', '.....GgGgG', '.......G', '.......G'], { G: [110, 255, 110, 255], g: [220, 255, 220, 255] }); });
   defTile('white', (p) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, [255, 255, 255]); });
 }
 

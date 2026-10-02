@@ -41,7 +41,7 @@ function tiles6(side, top, bottom, front, back) { return [side, side, top || sid
 
 const MOB_TYPES = {
   pig: {
-    name: 'Pig', w: 0.9, h: 0.9, hp: 10, speed: 1.3, hostile: false, sound: 'pig',
+    name: 'Pig', w: 0.9, h: 0.9, hp: 10, speed: 1.3, hostile: false, sound: 'pig', food: [I.CARROT, I.POTATO, I.BEETROOT],
     drops: () => [[I.PORKCHOP, 1 + Math.floor(Math.random() * 3)]],
     parts: () => {
       const s = tileIndex('pig_skin'), f = tileIndex('pig_face');
@@ -56,7 +56,7 @@ const MOB_TYPES = {
     },
   },
   sheep: {
-    name: 'Sheep', w: 0.9, h: 1.3, hp: 8, speed: 1.2, hostile: false, sound: 'sheep',
+    name: 'Sheep', w: 0.9, h: 1.3, hp: 8, speed: 1.2, hostile: false, sound: 'sheep', food: [I.WHEAT],
     drops: () => [[B.WOOL_WHITE, 1], [I.MUTTON, 1 + Math.floor(Math.random() * 2)]],
     parts: () => {
       const w = tileIndex('sheep_wool'), f = tileIndex('sheep_face'), s = tileIndex('sheep_skin');
@@ -70,9 +70,50 @@ const MOB_TYPES = {
       ];
     },
   },
+  cow: {
+    name: 'Cow', w: 0.9, h: 1.4, hp: 10, speed: 1.1, hostile: false, sound: 'cow', food: [I.WHEAT],
+    drops: () => [[I.LEATHER, Math.floor(Math.random() * 3)], [I.BEEF, 1 + Math.floor(Math.random() * 3)]],
+    parts: () => {
+      const s = tileIndex('cow_skin'), f = tileIndex('cow_face'), h = tileIndex('horn');
+      return [
+        part([0.75, 0.625, 1.125], [0, 0.75, 0], [-0.375, 0, -0.5625], tiles6(s)),
+        part([0.5, 0.5, 0.375], [0, 1.05, -0.55], [-0.25, 0, -0.375], tiles6(s, s, s, f), 'head'),
+        part([0.0625, 0.1875, 0.0625], [0, 1.05, -0.55], [-0.3125, 0.45, -0.25], tiles6(h), 'head'),
+        part([0.0625, 0.1875, 0.0625], [0, 1.05, -0.55], [0.25, 0.45, -0.25], tiles6(h), 'head'),
+        part([0.25, 0.75, 0.25], [-0.19, 0.75, -0.38], [-0.125, -0.75, -0.125], tiles6(s), 'legA'),
+        part([0.25, 0.75, 0.25], [0.19, 0.75, -0.38], [-0.125, -0.75, -0.125], tiles6(s), 'legB'),
+        part([0.25, 0.75, 0.25], [-0.19, 0.75, 0.38], [-0.125, -0.75, -0.125], tiles6(s), 'legB'),
+        part([0.25, 0.75, 0.25], [0.19, 0.75, 0.38], [-0.125, -0.75, -0.125], tiles6(s), 'legA'),
+      ];
+    },
+  },
+  chicken: {
+    name: 'Chicken', w: 0.45, h: 0.75, hp: 4, speed: 1.1, hostile: false, sound: 'chicken', food: [I.WHEAT_SEEDS, I.BEETROOT_SEEDS, I.PUMPKIN_SEEDS, I.MELON_SEEDS],
+    drops: () => [[I.FEATHER, Math.floor(Math.random() * 3)], [I.CHICKEN, 1]],
+    parts: () => {
+      const s = tileIndex('chicken_skin'), f = tileIndex('chicken_face'), b = tileIndex('beak'), w = tileIndex('wattle'), l = tileIndex('chicken_leg');
+      return [
+        part([0.375, 0.375, 0.5], [0, 0.3125, 0], [-0.1875, 0, -0.25], tiles6(s)),
+        part([0.25, 0.375, 0.1875], [0, 0.56, -0.22], [-0.125, 0, -0.1875], tiles6(s, s, s, f), 'head'),
+        part([0.25, 0.125, 0.125], [0, 0.56, -0.22], [-0.125, 0.1875, -0.3125], tiles6(b), 'head'),
+        part([0.125, 0.125, 0.0625], [0, 0.56, -0.22], [-0.0625, 0.0625, -0.25], tiles6(w), 'head'),
+        part([0.0625, 0.25, 0.375], [-0.21, 0.6, 0], [-0.03, -0.25, -0.1875], tiles6(s), 'wingA'),
+        part([0.0625, 0.25, 0.375], [0.21, 0.6, 0], [-0.03, -0.25, -0.1875], tiles6(s), 'wingB'),
+        part([0.0625, 0.3125, 0.0625], [-0.08, 0.3125, 0.02], [-0.03, -0.3125, -0.03], tiles6(l), 'legA'),
+        part([0.0625, 0.3125, 0.0625], [0.08, 0.3125, 0.02], [-0.03, -0.3125, -0.03], tiles6(l), 'legB'),
+      ];
+    },
+  },
   zombie: {
     name: 'Zombie', w: 0.6, h: 1.95, hp: 20, speed: 2.4, hostile: true, sound: 'zombie', damage: 3,
-    drops: () => Math.random() < 0.7 ? [[I.ROTTEN_FLESH, 1 + Math.floor(Math.random() * 2)]] : [],
+    drops: () => {
+      const d = [];
+      if (Math.random() < 0.7) d.push([I.ROTTEN_FLESH, 1 + Math.floor(Math.random() * 2)]);
+      if (Math.random() < 0.3) d.push([I.BONE, 1]);
+      const r = Math.random();
+      if (r < 0.03) d.push([I.CARROT, 1]); else if (r < 0.06) d.push([I.POTATO, 1]);
+      return d;
+    },
     parts: () => humanoidParts('zombie_skin', 'zombie_face', 'zombie_skin', 'zombie_shirt', 'zombie_pants', true),
   },
   creeper: {
@@ -105,8 +146,19 @@ function humanoidParts(skin, face, headSide, shirt, pants, zombieArms) {
   ];
 }
 
+MOB_TYPES.sheep.shornParts = () => {
+  const f = tileIndex('sheep_face'), s = tileIndex('sheep_skin');
+  return [
+    part([0.6, 0.5, 1.0], [0, 0.5, 0], [-0.3, 0.05, -0.5], tiles6(s)),
+    part([0.4, 0.45, 0.5], [0, 0.85, -0.5], [-0.2, 0, -0.4], tiles6(s, s, s, f), 'head'),
+    part([0.22, 0.5, 0.22], [-0.2, 0.5, -0.35], [-0.11, -0.5, -0.11], tiles6(s), 'legA'),
+    part([0.22, 0.5, 0.22], [0.2, 0.5, -0.35], [-0.11, -0.5, -0.11], tiles6(s), 'legB'),
+    part([0.22, 0.5, 0.22], [-0.2, 0.5, 0.35], [-0.11, -0.5, -0.11], tiles6(s), 'legB'),
+    part([0.22, 0.5, 0.22], [0.2, 0.5, 0.35], [-0.11, -0.5, -0.11], tiles6(s), 'legA'),
+  ];
+};
 const MODEL_CACHE = {};
-function getModel(type) { return MODEL_CACHE[type] || (MODEL_CACHE[type] = MOB_TYPES[type] ? MOB_TYPES[type].parts() : humanoidParts('player_skin', 'player_face', 'player_head_side', 'player_shirt', 'player_pants', false)); }
+function getModel(type) { return MODEL_CACHE[type] || (MODEL_CACHE[type] = type === 'sheep_shorn' ? MOB_TYPES.sheep.shornParts() : MOB_TYPES[type] ? MOB_TYPES[type].parts() : humanoidParts('player_skin', 'player_face', 'player_head_side', 'player_shirt', 'player_pants', false)); }
 
 const _m = Mat4.create(), _m2 = Mat4.create();
 function drawModel(mesh, type, x, y, z, yaw, walk, walkAmt, headPitch, sky, blk, flag, extra = {}) {
@@ -126,6 +178,7 @@ function drawModel(mesh, type, x, y, z, yaw, walk, walkAmt, headPitch, sky, blk,
       case 'armB': ang = sw; break;
       case 'zarmA': case 'zarmB': ang = Math.PI / 2 * -1 + Math.sin(walk * 0.5) * 0.05; break;
       case 'head': ang = -(headPitch || 0); break;
+      case 'wingA': case 'wingB': ang = extra.flap ? Math.sin(extra.flap) * 0.5 - 0.4 : 0; break;
     }
     if (ang) Mat4.rotateX(_m, _m, ang);
     Mat4.translate(_m, _m, p.off[0], p.off[1], p.off[2]);
@@ -146,6 +199,55 @@ class Mob extends Entity {
     this.soundTimer = 3 + Math.random() * 8;
     this.yaw = Math.random() * Math.PI * 2;
     this.isMob = true;
+    this.baby = false; this.growTimer = 0; this.love = 0; this.breedCd = 0; this.sheared = false; this.persistent = false;
+    this.eggTimer = 300 + Math.random() * 300; this.flap = 0; this.interactCd = 0;
+  }
+
+  setBaby(on) {
+    this.baby = on;
+    this.w = this.T.w * (on ? 0.5 : 1); this.h = this.T.h * (on ? 0.5 : 1);
+    if (on) this.growTimer = 300;
+  }
+
+  // Right-click with an item. Returns true if something happened.
+  interact(game, held) {
+    if (this.T.hostile || this.deathTime > 0 || this.interactCd > 0) return false;
+    const p = game.player, inv = p.inventory, id = held ? held.id : 0;
+    const creative = p.mode === 'creative';
+    this.interactCd = 0.25;
+    if (this.type === 'sheep' && id === I.SHEARS && !this.sheared && !this.baby) {
+      this.sheared = true; this.persistent = true;
+      game.spawnDrop(B.WOOL_WHITE, 1 + Math.floor(Math.random() * 3), this.x, this.y + 1, this.z);
+      game.audio.play('dig_wool', this.x, this.y, this.z);
+      if (!creative) inv.damageHeld(1);
+      return true;
+    }
+    if (this.type === 'cow' && id === I.BUCKET && !this.baby) {
+      if (!creative) { inv.consumeHeld(1); const left = inv.add(I.MILK_BUCKET, 1); if (left) game.dropFromPlayer(I.MILK_BUCKET, 1); }
+      game.audio.play('bucket', this.x, this.y, this.z);
+      return true;
+    }
+    if (this.T.food && this.T.food.includes(id)) {
+      if (this.baby) { this.growTimer -= 60; }
+      else if (this.love <= 0 && this.breedCd <= 0) { this.love = 30; }
+      else return false;
+      this.persistent = true;
+      if (!creative) inv.consumeHeld(1);
+      game.audio.play('eat', this.x, this.y, this.z, 0.7);
+      game.particles.hearts(this.x, this.y + this.h, this.z, 3);
+      return true;
+    }
+    return false;
+  }
+
+  serialize() {
+    return { type: this.type, x: this.x, y: this.y, z: this.z, yaw: this.yaw, hp: this.hp, baby: this.baby, growTimer: this.growTimer, sheared: this.sheared, breedCd: this.breedCd, persistent: this.persistent };
+  }
+  static load(d) {
+    const m = new Mob(d.type, d.x, d.y, d.z);
+    m.yaw = d.yaw || 0; m.hp = d.hp || m.T.hp; m.sheared = !!d.sheared; m.breedCd = d.breedCd || 0; m.persistent = !!d.persistent;
+    if (d.baby) { m.setBaby(true); m.growTimer = d.growTimer || 300; }
+    return m;
   }
 
   damage(amount, game, srcX, srcZ, kb = 1) {
@@ -172,7 +274,7 @@ class Mob extends Entity {
       this.physics(dt, world);
       if (this.deathTime > 0.8) {
         this.dead = true;
-        for (const [id, n] of this.T.drops()) if (n > 0) game.spawnDrop(id, n, this.x, this.y + 0.5, this.z);
+        if (!this.baby) for (const [id, n] of this.T.drops()) if (n > 0) game.spawnDrop(id, n, this.x, this.y + 0.5, this.z);
         game.particles.smoke(this.x, this.y + this.h / 2, this.z, 10);
       }
       return;
@@ -197,6 +299,9 @@ class Mob extends Entity {
           if (this.fuse > 1.5) { this.dead = true; game.explode(this.x, this.y + 0.8, this.z, 3, this); return; }
         } else this.fuse = Math.max(0, this.fuse - dt);
       }
+    } else if (this.farmAnimal(dt, game, dist, dx, dz)) {
+      moveX = -Math.sin(this.yaw); moveZ = -Math.cos(this.yaw);
+      if (this.stopNear) moveX = moveZ = 0;
     } else {
       if (this.panic > 0) { this.panic -= dt; speed *= 1.8; if (this.wanderTimer > 0.6) this.wanderTimer = 0.6; }
       this.wanderTimer -= dt;
@@ -238,6 +343,58 @@ class Mob extends Entity {
     if (this.soundTimer <= 0) { this.soundTimer = 6 + Math.random() * 10; if (this.type !== 'creeper') game.audio.play(this.T.sound, this.x, this.y, this.z); }
   }
 
+  // Breeding, following food, growing up, laying eggs, regrowing wool.
+  // Returns true when the animal wants to walk toward a target (yaw already set).
+  farmAnimal(dt, game, dist, dx, dz) {
+    if (this.T.hostile) return false;
+    if (this.interactCd > 0) this.interactCd -= dt;
+    if (this.breedCd > 0) this.breedCd -= dt;
+    if (this.baby) { this.growTimer -= dt; if (this.growTimer <= 0) this.setBaby(false); }
+    if (this.type === 'chicken') {
+      this.flap += dt * (this.onGround ? 4 : 30);
+      if (!this.onGround && this.vy < -2.2) this.vy = -2.2;
+      if (!this.baby) { this.eggTimer -= dt; if (this.eggTimer <= 0) { this.eggTimer = 300 + Math.random() * 300; game.spawnDrop(I.EGG, 1, this.x, this.y + 0.3, this.z); game.audio.play('pop', this.x, this.y, this.z, 0.6); } }
+    }
+    if (this.type === 'sheep' && this.sheared && this.onGround && Math.random() < dt / 40) {
+      const bx = Math.floor(this.x), by = Math.floor(this.y - 0.1), bz = Math.floor(this.z);
+      if (game.world.getBlock(bx, by, bz) === B.GRASS) { game.world.setBlock(bx, by, bz, B.DIRT); this.sheared = false; }
+    }
+    if (this.panic > 0) return false;
+    this.stopNear = false;
+    // looking for a partner
+    if (this.love > 0) {
+      this.love -= dt;
+      if (Math.random() < dt * 3) game.particles.hearts(this.x, this.y + this.h, this.z, 1);
+      let mate = null, md = 8;
+      for (const e of game.entities) {
+        if (e === this || !e.isMob || e.type !== this.type || e.love <= 0 || e.baby || e.dead) continue;
+        const d = Math.hypot(e.x - this.x, e.z - this.z);
+        if (d < md) { md = d; mate = e; }
+      }
+      if (mate) {
+        if (md < 1.3) {
+          this.love = mate.love = 0; this.breedCd = mate.breedCd = 300;
+          const baby = new Mob(this.type, (this.x + mate.x) / 2, this.y, (this.z + mate.z) / 2);
+          baby.setBaby(true); baby.persistent = true;
+          game.entities.push(baby);
+          game.particles.hearts(baby.x, baby.y + 0.5, baby.z, 6);
+          game.audio.play(this.T.sound, this.x, this.y, this.z);
+          return false;
+        }
+        this.yaw = Math.atan2(-(mate.x - this.x), -(mate.z - this.z));
+        return true;
+      }
+    }
+    // follow a player holding our food
+    const held = game.player.inventory.heldId();
+    if (this.T.food && this.T.food.includes(held) && dist < 9 && !game.player.dead) {
+      this.yaw = Math.atan2(-dx, -dz);
+      this.stopNear = dist < 2;
+      return true;
+    }
+    return false;
+  }
+
   render(mesh, world) {
     const sky = world.getSky(Math.floor(this.x), Math.floor(this.y + 0.5), Math.floor(this.z));
     const blk = world.getBlockLight(Math.floor(this.x), Math.floor(this.y + 0.5), Math.floor(this.z));
@@ -245,16 +402,18 @@ class Mob extends Entity {
     if (this.type === 'creeper' && this.fuse > 0 && Math.floor(this.fuse * 8) % 2 === 0) flag = 4;
     const swell = this.type === 'creeper' ? 1 + this.fuse * 0.08 : 1;
     const roll = this.deathTime > 0 ? Math.min(1, this.deathTime * 2.5) * Math.PI / 2 : 0;
-    if (swell !== 1) {
-      // approximate swelling by drawing scaled model around centre
-      drawModelScaled(mesh, this.type, this.x, this.y, this.z, this.yaw, this.walk, this.walkAmt, sky, blk, flag, swell);
-    } else drawModel(mesh, this.type, this.x, this.y, this.z, this.yaw, this.walk, this.walkAmt, 0, sky, blk, flag, { deathRoll: roll });
+    const model = this.type === 'sheep' && this.sheared ? 'sheep_shorn' : this.type;
+    const scale = swell * (this.baby ? 0.55 : 1);
+    if (scale !== 1) {
+      // swelling creepers and baby animals: draw a scaled model around the feet
+      drawModelScaled(mesh, model, this.x, this.y, this.z, this.yaw, this.walk, this.walkAmt, sky, blk, flag, scale, { deathRoll: roll, flap: this.flap });
+    } else drawModel(mesh, model, this.x, this.y, this.z, this.yaw, this.walk, this.walkAmt, 0, sky, blk, flag, { deathRoll: roll, flap: this.flap });
   }
 }
 
-function drawModelScaled(mesh, type, x, y, z, yaw, walk, walkAmt, sky, blk, flag, s) {
+function drawModelScaled(mesh, type, x, y, z, yaw, walk, walkAmt, sky, blk, flag, s, extra) {
   const start = mesh.n;
-  drawModel(mesh, type, x, y, z, yaw, walk, walkAmt, 0, sky, blk, flag);
+  drawModel(mesh, type, x, y, z, yaw, walk, walkAmt, 0, sky, blk, flag, extra || {});
   const f = mesh.f;
   for (let i = start; i < mesh.n; i++) {
     const o = i * 6;
@@ -382,6 +541,14 @@ class ParticleSystem {
   flame(x, y, z) {
     const tile = tileIndex('torch');
     this.list.push({ x: x + (Math.random() - 0.5) * 0.5, y, z: z + (Math.random() - 0.5) * 0.5, vx: 0, vy: 1, vz: 0, life: 0.4, tile, rect: [7, 5, 9, 8], size: 0.15, grav: -0.2, bright: true });
+  }
+  hearts(x, y, z, n) {
+    const tile = tileIndex('heart');
+    for (let i = 0; i < n; i++) this.list.push({ x: x + (Math.random() - 0.5) * 0.8, y: y + Math.random() * 0.3, z: z + (Math.random() - 0.5) * 0.8, vx: 0, vy: 0.8, vz: 0, life: 1, tile, rect: [2, 5, 9, 11], size: 0.16, grav: -0.02, bright: true });
+  }
+  sparkle(x, y, z, n) {
+    const tile = tileIndex('sparkle');
+    for (let i = 0; i < n; i++) this.list.push({ x: x + Math.random(), y: y + Math.random() * 0.8, z: z + Math.random(), vx: 0, vy: 0.4, vz: 0, life: 0.8 + Math.random() * 0.6, tile, rect: null, size: 0.1, grav: -0.02, bright: true });
   }
   bubble(x, y, z) {
     const tile = tileIndex('white');

@@ -19,6 +19,8 @@ const B = {
   LILAC: 79, LILAC_TOP: 80, ROSE_BUSH: 81, ROSE_BUSH_TOP: 82, PEONY: 83, PEONY_TOP: 84,
   BROWN_MUSHROOM: 85, RED_MUSHROOM: 86, SUGAR_CANE: 87, LILY_PAD: 88, PUMPKIN: 89, BERRY_BUSH: 90, BUSH: 91,
   JACK_O_LANTERN: 92, BERRY_BUSH_EMPTY: 93,
+  FARMLAND: 94, WHEAT: 95, CARROTS: 96, POTATOES: 97, BEETROOTS: 98, PUMPKIN_STEM: 99, MELON_STEM: 100,
+  MELON: 101, HAY_BALE: 102, COMPOSTER: 103, CAKE: 104,
 };
 
 const I = {
@@ -29,7 +31,7 @@ const I = {
 };
 
 // Render types
-const RT_NONE = 0, RT_CUBE = 1, RT_CROSS = 2, RT_TORCH = 3, RT_LIQUID = 4, RT_CACTUS = 5, RT_BED = 6, RT_FLAT = 7;
+const RT_NONE = 0, RT_CUBE = 1, RT_CROSS = 2, RT_TORCH = 3, RT_LIQUID = 4, RT_CACTUS = 5, RT_BED = 6, RT_FLAT = 7, RT_CROP = 8, RT_FARMLAND = 9, RT_CAKE = 10;
 
 const BLOCKS = [];
 function defBlock(id, d) {
@@ -129,11 +131,35 @@ defBlock(B.LILY_PAD, { name: 'Lily Pad', tex: 'lily_pad', solid: false, opaque: 
 defBlock(B.PUMPKIN, { name: 'Pumpkin', tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side' }, hardness: 1, tool: 'axe', sound: 'wood' });
 defBlock(B.JACK_O_LANTERN, { name: "Jack o'Lantern", tex: { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'jack_o_lantern' }, hardness: 1, tool: 'axe', sound: 'wood', light: 15, facing: true });
 
+// ---- Farming ---------------------------------------------------------------
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+defBlock(B.FARMLAND, { name: 'Farmland', tex: { top: 'farmland_dry', bottom: 'dirt', side: 'dirt' }, metaTop: ['farmland_dry', 'farmland_wet', 'farmland_wet', 'farmland_wet', 'farmland_wet', 'farmland_wet', 'farmland_wet', 'farmland_wet'],
+  opaque: false, filter: 15, render: RT_FARMLAND, hardness: 0.6, tool: 'shovel', sound: 'gravel', drop: B.DIRT });
+const crop = (name, tex, stages, drops, extra) => Object.assign({ name, tex: tex + '_0', metaTex: Array.from({ length: 8 }, (_, m) => tex + '_' + Math.min(stages - 1, Math.floor(m * stages / 8))),
+  solid: false, opaque: false, render: RT_CROP, cutout: true, hardness: 0, sound: 'grass', hidden: true, crop: true, drop: drops }, extra || {});
+defBlock(B.WHEAT, crop('Wheat Crops', 'wheat_stage', 8, (m) => m >= 7 ? [[I.WHEAT, 1], [I.WHEAT_SEEDS, rnd(1, 3)]] : [[I.WHEAT_SEEDS, 1]]));
+defBlock(B.CARROTS, crop('Carrots', 'carrots_stage', 4, (m) => [[I.CARROT, m >= 7 ? rnd(2, 4) : 1]]));
+defBlock(B.POTATOES, crop('Potatoes', 'potatoes_stage', 4, (m) => [[I.POTATO, m >= 7 ? rnd(2, 4) : 1]]));
+defBlock(B.BEETROOTS, crop('Beetroots', 'beetroots_stage', 4, (m) => m >= 7 ? [[I.BEETROOT, 1], [I.BEETROOT_SEEDS, rnd(1, 3)]] : [[I.BEETROOT_SEEDS, 1]]));
+defBlock(B.PUMPKIN_STEM, crop('Pumpkin Stem', 'stem_stage', 8, () => [[I.PUMPKIN_SEEDS, 1]], { fruit: B.PUMPKIN }));
+defBlock(B.MELON_STEM, crop('Melon Stem', 'stem_stage', 8, () => [[I.MELON_SEEDS, 1]], { fruit: B.MELON }));
+defBlock(B.MELON, { name: 'Melon', tex: { top: 'melon_top', bottom: 'melon_top', side: 'melon_side' }, hardness: 1, tool: 'axe', sound: 'wood', drop: () => [[I.MELON_SLICE, rnd(3, 7)]] });
+defBlock(B.HAY_BALE, { name: 'Hay Bale', tex: { top: 'hay_top', bottom: 'hay_top', side: 'hay_side' }, hardness: 0.5, sound: 'grass' });
+defBlock(B.COMPOSTER, { name: 'Composter', tex: { top: 'composter_0', bottom: 'oak_planks', side: 'composter_side' }, hardness: 0.6, tool: 'axe', sound: 'wood', interact: 'composter',
+  metaTop: ['composter_0', 'composter_1', 'composter_1', 'composter_2', 'composter_2', 'composter_3', 'composter_3', 'composter_4', 'composter_ready'] });
+defBlock(B.CAKE, { name: 'Cake', tex: { top: 'cake_top', bottom: 'cake_bottom', side: 'cake_side' }, opaque: false, render: RT_CAKE, filter: 0, hardness: 0.5, sound: 'wool', interact: 'cake', drop: 0, hidden: true });
+
 WOOLS.forEach((w, i) => defBlock(B.WOOL_WHITE + i, { name: w[0].toUpperCase() + w.slice(1) + ' Wool', tex: 'wool_' + w, hardness: 0.8, sound: 'wool' }));
 
 // ---- Items -----------------------------------------------------------------
 const ITEMS = [];
 I.WHEAT_SEEDS = 273; I.PAPER = 274; I.BOWL = 275; I.MUSHROOM_STEW = 276; I.SWEET_BERRIES = 277; I.PUMPKIN_PIE = 278;
+Object.assign(I, {
+  WHEAT: 279, CARROT: 280, POTATO: 281, BAKED_POTATO: 282, BEETROOT: 283, BEETROOT_SEEDS: 284, BEETROOT_SOUP: 285,
+  PUMPKIN_SEEDS: 286, MELON_SEEDS: 287, MELON_SLICE: 288, SUGAR: 289, EGG: 290, FEATHER: 291, LEATHER: 292,
+  BEEF: 293, STEAK: 294, CHICKEN: 295, COOKED_CHICKEN: 296, MILK_BUCKET: 297, BONE: 298, BONE_MEAL: 299,
+  CAKE: 320, SHEARS: 321, COOKIE: 322, BOOK: 323,
+});
 function defItem(id, d) {
   ITEMS[id] = Object.assign({ id, name: 'Item', tile: 'stick', stack: 64 }, d);
   return ITEMS[id];
@@ -155,12 +181,37 @@ defItem(I.FLINT, { name: 'Flint', tile: 'flint' });
 defItem(I.FLINT_AND_STEEL, { name: 'Flint and Steel', tile: 'flint_and_steel', stack: 1, durability: 64 });
 defItem(I.BUCKET, { name: 'Bucket', tile: 'bucket', stack: 16 });
 defItem(I.WATER_BUCKET, { name: 'Water Bucket', tile: 'water_bucket', stack: 1 });
-defItem(I.WHEAT_SEEDS, { name: 'Seeds', tile: 'wheat_seeds' });
+defItem(I.WHEAT_SEEDS, { name: 'Wheat Seeds', tile: 'wheat_seeds', places: B.WHEAT });
 defItem(I.PAPER, { name: 'Paper', tile: 'paper' });
 defItem(I.BOWL, { name: 'Bowl', tile: 'bowl' });
 defItem(I.MUSHROOM_STEW, { name: 'Mushroom Stew', tile: 'mushroom_stew', stack: 1, food: 6, returns: I.BOWL });
 defItem(I.SWEET_BERRIES, { name: 'Sweet Berries', tile: 'sweet_berries', food: 2, places: B.BERRY_BUSH });
 defItem(I.PUMPKIN_PIE, { name: 'Pumpkin Pie', tile: 'pumpkin_pie', food: 8 });
+defItem(I.WHEAT, { name: 'Wheat', tile: 'wheat' });
+defItem(I.CARROT, { name: 'Carrot', tile: 'carrot', food: 3, places: B.CARROTS });
+defItem(I.POTATO, { name: 'Potato', tile: 'potato', food: 1, places: B.POTATOES });
+defItem(I.BAKED_POTATO, { name: 'Baked Potato', tile: 'baked_potato', food: 5 });
+defItem(I.BEETROOT, { name: 'Beetroot', tile: 'beetroot', food: 1 });
+defItem(I.BEETROOT_SEEDS, { name: 'Beetroot Seeds', tile: 'beetroot_seeds', places: B.BEETROOTS });
+defItem(I.BEETROOT_SOUP, { name: 'Beetroot Soup', tile: 'beetroot_soup', stack: 1, food: 6, returns: I.BOWL });
+defItem(I.PUMPKIN_SEEDS, { name: 'Pumpkin Seeds', tile: 'pumpkin_seeds', places: B.PUMPKIN_STEM });
+defItem(I.MELON_SEEDS, { name: 'Melon Seeds', tile: 'melon_seeds', places: B.MELON_STEM });
+defItem(I.MELON_SLICE, { name: 'Melon Slice', tile: 'melon_slice', food: 2 });
+defItem(I.SUGAR, { name: 'Sugar', tile: 'sugar' });
+defItem(I.EGG, { name: 'Egg', tile: 'egg', stack: 16 });
+defItem(I.FEATHER, { name: 'Feather', tile: 'feather' });
+defItem(I.LEATHER, { name: 'Leather', tile: 'leather' });
+defItem(I.BEEF, { name: 'Raw Beef', tile: 'beef', food: 3 });
+defItem(I.STEAK, { name: 'Steak', tile: 'steak', food: 8 });
+defItem(I.CHICKEN, { name: 'Raw Chicken', tile: 'chicken', food: 2 });
+defItem(I.COOKED_CHICKEN, { name: 'Cooked Chicken', tile: 'cooked_chicken', food: 6 });
+defItem(I.MILK_BUCKET, { name: 'Milk Bucket', tile: 'milk_bucket', stack: 1, food: 0, drink: true, returns: I.BUCKET });
+defItem(I.BONE, { name: 'Bone', tile: 'bone' });
+defItem(I.BONE_MEAL, { name: 'Bone Meal', tile: 'bone_meal', bonemeal: true });
+defItem(I.CAKE, { name: 'Cake', tile: 'cake_item', stack: 1, places: B.CAKE });
+defItem(I.SHEARS, { name: 'Shears', tile: 'shears', stack: 1, durability: 238, tool: 'shears', tier: 0, speed: 1.5, damage: 1 });
+defItem(I.COOKIE, { name: 'Cookie', tile: 'cookie', food: 2 });
+defItem(I.BOOK, { name: 'Book', tile: 'book' });
 
 const TOOL_MATS = [
   { key: 'wooden', name: 'Wooden', tier: 0, speed: 2, dur: 59, dmg: 0 },
@@ -185,7 +236,22 @@ const TOOLS = {}; // 'iron_pickaxe' -> id
     });
     TOOLS[m.key + '_' + t.key] = id++;
   }
+  // hoes were added later; keep earlier ids stable for old saves
+  let hid = 324;
+  for (const m of TOOL_MATS) {
+    defItem(hid, { name: m.name + ' Hoe', tile: m.key + '_hoe', stack: 1, durability: m.dur, tool: 'hoe', tier: m.tier, speed: m.speed, damage: 1 });
+    TOOLS[m.key + '_hoe'] = hid++;
+  }
 }
+
+// Items that the composter accepts and their chance to raise the level
+const COMPOST = {};
+for (const id of [I.WHEAT_SEEDS, I.BEETROOT_SEEDS, I.PUMPKIN_SEEDS, I.MELON_SEEDS, B.TALLGRASS, B.OAK_LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES,
+  B.SAPLING_OAK, B.SAPLING_BIRCH, B.SAPLING_SPRUCE, I.SWEET_BERRIES, B.FERN, B.BUSH]) COMPOST[id] = 0.3;
+for (const id of [B.CACTUS, B.SUGAR_CANE, I.MELON_SLICE, B.TALL_GRASS, B.LILY_PAD, B.DEAD_BUSH]) COMPOST[id] = 0.5;
+for (const id of [I.WHEAT, I.CARROT, I.POTATO, I.BEETROOT, B.PUMPKIN, B.MELON, B.BROWN_MUSHROOM, B.RED_MUSHROOM, B.DANDELION, B.ROSE, B.LARGE_FERN]) COMPOST[id] = 0.65;
+for (const id of [I.BREAD, I.BAKED_POTATO, I.COOKIE, B.HAY_BALE]) COMPOST[id] = 0.85;
+for (const id of [I.PUMPKIN_PIE, I.CAKE]) COMPOST[id] = 1;
 
 function isBlockId(id) { return id > 0 && id < 256; }
 function itemName(id) { return id < 256 ? (BLOCKS[id] ? BLOCKS[id].name : '?') : (ITEMS[id] ? ITEMS[id].name : '?'); }
@@ -203,8 +269,10 @@ const TINT = new Uint8Array(256);  // biome-tinted greens
 const CULLSAME = new Uint8Array(256);
 const FACE_TEX = new Uint16Array(256 * 6);
 const BLOCK_TOP = new Float32Array(256).fill(1);  // collision height
-BLOCK_TOP[62] = 0.5625;    // face order: +x,-x,+y,-y,+z,-z
+BLOCK_TOP[62] = 0.5625; BLOCK_TOP[94] = 0.9375; BLOCK_TOP[104] = 0.5;    // face order: +x,-x,+y,-y,+z,-z
 const FRONT_TEX = new Uint16Array(256);
+const META_TEX = new Uint16Array(256 * 9);   // per-meta texture (crop stages, farmland, composter level)
+const HAS_META_TEX = new Uint8Array(256);
 // facing meta (0..3) -> face index that shows the "front" texture
 const FACING_FACE = [4, 1, 5, 0];
 
@@ -227,6 +295,8 @@ function initBlockTables() {
     const t = [tileIndex(side), tileIndex(side), tileIndex(top), tileIndex(bottom), tileIndex(side), tileIndex(side)];
     for (let f = 0; f < 6; f++) FACE_TEX[id * 6 + f] = t[f];
     FRONT_TEX[id] = tileIndex(front);
+    const mt = b.metaTex || b.metaTop;
+    if (mt) { HAS_META_TEX[id] = b.metaTex ? 1 : 2; for (let m = 0; m < 9; m++) META_TEX[id * 9 + m] = tileIndex(mt[Math.min(m, mt.length - 1)]); }
   }
 }
 
@@ -249,6 +319,7 @@ function breakTime(blockId, heldId, creative) {
   let speed = 1;
   const correctTool = it && it.tool && it.tool === b.tool;
   if (correctTool) speed = it.speed;
+  if (it && it.tool === 'shears' && (blockId === B.OAK_LEAVES || blockId === B.BIRCH_LEAVES || blockId === B.SPRUCE_LEAVES || BLOCKS[blockId].sound === 'wool')) speed = 6;
   if (it && it.tool === 'sword' && (blockId === B.OAK_LEAVES || blockId === B.BIRCH_LEAVES || blockId === B.SPRUCE_LEAVES)) speed = 1.5;
   const canHarvest = b.tier < 0 || (correctTool && it.tier >= b.tier);
   return b.hardness * (canHarvest ? 1.5 : 5) / speed;
@@ -261,8 +332,18 @@ function canHarvest(blockId, heldId) {
   return !!(it && it.tool === b.tool && it.tier >= b.tier);
 }
 
-function blockDrop(blockId, heldId) {
+function blockDrop(blockId, heldId, meta = 0) {
+  const d = blockDrops(blockId, heldId, meta);
+  return d.length ? d[0][0] : 0;
+}
+
+// All drops of a block as [[id, count], ...]
+function blockDrops(blockId, heldId, meta = 0) {
   const b = BLOCKS[blockId];
-  if (!canHarvest(blockId, heldId)) return 0;
-  return typeof b.drop === 'function' ? b.drop() : b.drop;
+  if (!b || !canHarvest(blockId, heldId)) return [];
+  // shears collect leaves, grass and ferns themselves
+  if (heldId === I.SHEARS && (blockId === B.OAK_LEAVES || blockId === B.BIRCH_LEAVES || blockId === B.SPRUCE_LEAVES || blockId === B.TALLGRASS || blockId === B.FERN || blockId === B.BUSH)) return [[blockId, 1]];
+  const d = typeof b.drop === 'function' ? b.drop(meta) : b.drop;
+  if (!d) return [];
+  return Array.isArray(d) ? d.filter((x) => x[1] > 0) : [[d, 1]];
 }

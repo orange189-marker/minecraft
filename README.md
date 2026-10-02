@@ -27,6 +27,9 @@ Click **Singleplayer → Create New World**, pick a name, an optional seed and a
 - **Mining and tools**: breaking takes time, scaled by block hardness and tool. Wood, stone, iron, gold and diamond pickaxes, axes, shovels and swords all have durability.
 - **Crafting**: 2×2 crafting in the inventory, a 3×3 crafting table and a **recipe book** that fills the grid for you.
 - **Smelting**: a working furnace with fuel and progress. Furnaces and chests keep their contents.
+- **Farming**: till grass and dirt with a hoe (5 materials). Farmland gets wet near water. Grow wheat, carrots, potatoes and beetroot through their growth stages, plus pumpkin and melon stems that grow fruit beside them. Wild crops appear in the world, jumping on farmland tramples it, bone meal speeds up growth (and sprouts grass and flowers), and the composter turns spare plants into bone meal.
+- **Farm animals**: pigs, sheep, cows and chickens follow you when you hold their food. Feed two of them to breed a baby that grows up. Shear sheep (the wool regrows when they eat grass), milk cows with a bucket and collect eggs. Animals you feed or breed are saved with your world.
+- **Farm food and blocks**: bread, baked potato, beetroot soup, steak, cooked chicken, pumpkin pie, cookies, melon slices and a placeable cake you eat slice by slice. Also hay bales, sugar, books, melons and the composter.
 - **Mobs**: pigs and sheep, plus zombies (they burn in daylight) and creepers (they explode). Each has AI, animation, knockback and drops.
 - **TNT and explosions**: craters, chain reactions, block drops and damage.
 - **Liquids**: flowing water with levels, water buckets, and water and lava that make obsidian.
@@ -62,7 +65,8 @@ In inventories: left click picks up or places a stack, right click splits a stac
 2. Craft a crafting table, then a wooden pickaxe, and mine stone for stone tools.
 3. Build a furnace from 8 cobblestone and smelt iron ore into ingots.
 4. Make torches from coal and sticks before night falls. Zombies and creepers spawn in the dark.
-5. Craft a bed from 3 wool and 3 planks (sheep drop wool) to sleep through the night.
+5. Start a farm: craft a hoe, till grass next to water and plant the seeds you get from breaking grass. Find wild carrots and potatoes in plains, and lure animals home with wheat or carrots.
+6. Craft a bed from 3 wool and 3 planks (sheep drop wool) to sleep through the night.
 
 ## Code layout
 

@@ -40,7 +40,7 @@ shapeless([I.IRON_INGOT, I.FLINT], I.FLINT_AND_STEEL);
 shapeless([B.COBBLE, B.OAK_LEAVES], B.MOSSY_COBBLE);
 shapeless([I.GOLD_INGOT, I.COAL], B.GLOWSTONE);
 shaped(['SS', 'SS'], { S: B.SNOW }, B.SNOW);
-shaped(['W', 'W', 'W'], { W: I.WHEAT_SEEDS }, I.BREAD);
+shaped(['WWW'], { W: I.WHEAT }, I.BREAD);
 shaped(['WWW', 'PPP'], { W: 'wool', P: 'planks' }, B.BED);
 // dyes via flowers
 shapeless([B.WOOL_WHITE, B.DANDELION], B.WOOL_YELLOW);
@@ -59,11 +59,25 @@ for (const [flower, wool] of [[B.BLUE_ORCHID, B.WOOL_CYAN], [B.ALLIUM, B.WOOL_PU
   [B.TULIP_ORANGE, B.WOOL_ORANGE], [B.TULIP_PINK, B.WOOL_PINK], [B.CORNFLOWER, B.WOOL_BLUE], [B.SUNFLOWER, B.WOOL_YELLOW],
   [B.LILAC, B.WOOL_PURPLE], [B.ROSE_BUSH, B.WOOL_RED], [B.PEONY, B.WOOL_PINK]]) shapeless([B.WOOL_WHITE, flower], wool);
 shaped(['SSS'], { S: B.SUGAR_CANE }, I.PAPER, 3);
-shaped(['PPP', 'AAA', 'PPP'], { P: 'planks', A: I.PAPER }, B.BOOKSHELF);
+shaped(['PPP', 'AAA', 'PPP'], { P: 'planks', A: I.BOOK }, B.BOOKSHELF);
+shapeless([I.PAPER, I.PAPER, I.PAPER, I.LEATHER], I.BOOK);
 shaped(['P P', ' P '], { P: 'planks' }, I.BOWL, 4);
 shapeless([B.BROWN_MUSHROOM, B.RED_MUSHROOM, I.BOWL], I.MUSHROOM_STEW);
 shapeless([B.PUMPKIN, B.TORCH], B.JACK_O_LANTERN);
-shapeless([B.PUMPKIN, I.SWEET_BERRIES, I.WHEAT_SEEDS], I.PUMPKIN_PIE);
+shapeless([B.PUMPKIN, I.SUGAR, I.EGG], I.PUMPKIN_PIE);
+// farming
+shaped(['WWW', 'WWW', 'WWW'], { W: I.WHEAT }, B.HAY_BALE);
+shapeless([B.HAY_BALE], I.WHEAT, 9);
+shapeless([B.SUGAR_CANE], I.SUGAR);
+shapeless([B.PUMPKIN], I.PUMPKIN_SEEDS, 4);
+shapeless([I.MELON_SLICE], I.MELON_SEEDS);
+shaped(['MMM', 'MMM', 'MMM'], { M: I.MELON_SLICE }, B.MELON);
+shapeless([I.BOWL, I.BEETROOT, I.BEETROOT, I.BEETROOT, I.BEETROOT, I.BEETROOT, I.BEETROOT], I.BEETROOT_SOUP);
+shaped(['MMM', 'SES', 'WWW'], { M: I.MILK_BUCKET, S: I.SUGAR, E: I.EGG, W: I.WHEAT }, I.CAKE);
+shapeless([I.BONE], I.BONE_MEAL, 3);
+shaped(['P P', 'P P', 'PPP'], { P: 'planks' }, B.COMPOSTER);
+shaped([' I', 'I '], { I: I.IRON_INGOT }, I.SHEARS);
+shaped(['WSW'], { W: I.WHEAT, S: I.SUGAR }, I.COOKIE, 8);
 shapeless([B.COBBLE, B.BUSH], B.MOSSY_COBBLE);
 // tools
 {
@@ -74,6 +88,7 @@ shapeless([B.COBBLE, B.BUSH], B.MOSSY_COBBLE);
     shaped(['MM', 'MS', ' S'], { M, S: I.STICK }, TOOLS[m + '_axe']);
     shaped(['M', 'S', 'S'], { M, S: I.STICK }, TOOLS[m + '_shovel']);
     shaped(['M', 'M', 'S'], { M, S: I.STICK }, TOOLS[m + '_sword']);
+    shaped(['MM', ' S', ' S'], { M, S: I.STICK }, TOOLS[m + '_hoe']);
   }
 }
 
@@ -121,12 +136,14 @@ const SMELTING = {
   [B.OAK_LOG]: I.COAL, [B.BIRCH_LOG]: I.COAL, [B.SPRUCE_LOG]: I.COAL, [B.CLAY]: B.BRICKS,
   [I.PORKCHOP]: I.COOKED_PORKCHOP, [I.MUTTON]: I.COOKED_MUTTON, [B.DIAMOND_ORE]: I.DIAMOND, [B.COAL_ORE]: I.COAL,
   [B.STONE_BRICKS]: B.STONE, [B.SANDSTONE]: B.SAND,
+  [I.POTATO]: I.BAKED_POTATO, [I.BEEF]: I.STEAK, [I.CHICKEN]: I.COOKED_CHICKEN,
 };
 const FUEL = {
   [I.COAL]: 80, [B.OAK_PLANKS]: 15, [B.BIRCH_PLANKS]: 15, [B.SPRUCE_PLANKS]: 15, [B.OAK_LOG]: 15, [B.BIRCH_LOG]: 15,
   [B.SPRUCE_LOG]: 15, [I.STICK]: 5, [B.SAPLING_OAK]: 5, [B.SAPLING_BIRCH]: 5, [B.SAPLING_SPRUCE]: 5, [B.CRAFTING_TABLE]: 15, [B.CHEST]: 15, [B.BOOKSHELF]: 15,
 };
 for (const m of ['pickaxe', 'axe', 'shovel', 'sword']) FUEL[TOOLS['wooden_' + m]] = 10;
+FUEL[TOOLS.wooden_hoe] = 10; FUEL[B.HAY_BALE] = 20; FUEL[B.COMPOSTER] = 15;
 
 // ---------------------------------------------------------------------------
 // Inventory model
