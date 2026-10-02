@@ -80,12 +80,33 @@ class UI {
       foodEmpty: pixelIcon(emptied(FOOD_ROWS), EMPTY_FOOD),
       bubble: pixelIcon(BUBBLE_ROWS, { X: '#1a3a8a', L: '#5aa0ff', W: '#ffffff' }),
     };
+    this.buildButtonTextures();
     this.buildHUD();
     document.addEventListener('mousemove', (e) => {
       this.mouse.x = e.clientX; this.mouse.y = e.clientY;
       this.cursorEl.style.left = e.clientX + 'px'; this.cursorEl.style.top = e.clientY + 'px';
       this.tooltip.style.left = (e.clientX + 14) + 'px'; this.tooltip.style.top = (e.clientY - 26) + 'px';
     });
+  }
+
+  // Stone textures for menu buttons, generated from the atlas
+  buildButtonTextures() {
+    const make = (src, base, contrast, tint) => {
+      const c = document.createElement('canvas'); c.width = c.height = 16;
+      const x = c.getContext('2d'); const img = x.createImageData(16, 16);
+      for (let i = 0; i < 256; i++) {
+        const m = (src[i * 4] + src[i * 4 + 1] + src[i * 4 + 2]) / 3;
+        const v = base + (m - 125) * contrast;
+        img.data[i * 4] = v * tint[0]; img.data[i * 4 + 1] = v * tint[1]; img.data[i * 4 + 2] = v * tint[2]; img.data[i * 4 + 3] = 255;
+      }
+      x.putImageData(img, 0, 0);
+      return 'url(' + c.toDataURL() + ')';
+    };
+    const st = Atlas.pixels.stone, root = document.documentElement.style;
+    root.setProperty('--btn-tex', make(st, 112, 0.45, [1, 1, 1.02]));
+    root.setProperty('--btn-tex-hover', make(st, 118, 0.45, [0.82, 0.88, 1.22]));
+    root.setProperty('--btn-tex-dark', make(st, 52, 0.35, [1, 1, 1.03]));
+    root.setProperty('--btn-tex-off', make(st, 70, 0.25, [1, 1, 1]));
   }
 
   // ---- HUD -----------------------------------------------------------------------
@@ -704,8 +725,13 @@ class UI {
     const slider = (label, key, min, max, step, fmt) => {
       const w = el('div', 'slider', grid);
       const lab = el('div', 'slabel', w);
+      const knob = el('div', 'knob', w);
+      w.insertBefore(knob, lab);
       const inp = el('input', '', w); inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = s[key];
-      const upd = () => { lab.textContent = label + ': ' + fmt(+inp.value); };
+      const upd = () => {
+        lab.textContent = label + ': ' + fmt(+inp.value);
+        knob.style.left = `calc(${(inp.value - min) / (max - min)} * (100% - 16px))`;
+      };
       inp.oninput = () => { s[key] = +inp.value; upd(); g.applySettings(); };
       upd();
     };
