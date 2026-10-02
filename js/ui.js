@@ -607,7 +607,8 @@ class UI {
     this.screen = 'main';
     const m = el('div', 'menu', this.root);
     const logo = el('div', 'logo', m);
-    el('div', 'logo-text', logo, 'BLOCKHAVEN');
+    if (!this.logoUrl) this.logoUrl = renderLogo().toDataURL();
+    const img = el('img', 'logo-img', logo); img.src = this.logoUrl; img.alt = 'Blockhaven'; img.draggable = false;
     el('div', 'splash', logo, SPLASHES[Math.floor(Math.random() * SPLASHES.length)]);
     this.button(m, 'Singleplayer', () => this.showWorlds());
     this.button(m, 'Options...', () => this.showOptions(() => this.showMainMenu()));

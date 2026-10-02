@@ -15,6 +15,7 @@ class Game {
     initBlockTables();
     this.renderer = new Renderer(canvas);
     this.renderer.uploadAtlas();
+    setFavicon();
     this.audio = new AudioEngine();
     this.player = new Player();
     this.ui = new UI(this);
